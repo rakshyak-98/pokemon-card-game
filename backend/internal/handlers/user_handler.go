@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	"internal/models"
-	"internal/services"
 	"net/http"
+
+	"github.com/rakshyak-98/pokemonapi/internal/models"
+	"github.com/rakshyak-98/pokemonapi/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,19 +26,19 @@ func (h *UserHandler) RegisterUserRoutes(router *gin.Engine) {
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
-	var user models.User
+	user := &models.User{}
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	createUser, err := h.userService.CreateUser(user)
+	err := h.userService.RegisterUser(user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, createUser)
+	c.JSON(http.StatusCreated, user)
 }
 
 func (h *UserHandler) GetUser(c *gin.Context) {

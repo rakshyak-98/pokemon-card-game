@@ -1,7 +1,7 @@
 package main
 
 import (
-	"internal/middleware"
+	"github.com/rakshyak-98/pokemonapi/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
