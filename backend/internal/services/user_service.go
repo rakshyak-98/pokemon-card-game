@@ -47,7 +47,7 @@ func (s *userService) AuthenticateUser(username, password string) (string, error
 		return "", errors.New("invalid password")
 	}
 
-	token, err := generateJWTToken(user.Id)
+	token, err := generateJWTToken(user.Id, "")
 	if err != nil {
 		return "", err
 	}
