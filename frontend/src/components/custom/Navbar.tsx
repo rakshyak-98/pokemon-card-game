@@ -1,13 +1,14 @@
 import { Button } from "@/components/ui/button";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Home,
-  List,
-  Settings,
-  User,
+	ChevronLeft,
+	ChevronRight,
+	Home,
+	List,
+	Settings,
+	User,
 } from "lucide-react";
 import React, { useState } from "react";
+import { text } from "../constant";
 
 interface NavItem {
 	name: string;
@@ -39,7 +40,7 @@ export default function CollapsibleSidebar() {
 
 	return (
 		<div
-			className={`fixed left-0 top-0 h-full bg-card text-text-primary transition-all duration-300 ${
+			className={`fixed left-0 top-0 h-full bg-card transition-all duration-300 ${
 				isExpanded ? "w-64" : "w-20"
 			}`}
 		>
@@ -47,7 +48,9 @@ export default function CollapsibleSidebar() {
 				<div>
 					<div className="mb-8 flex items-center justify-between">
 						{isExpanded && (
-							<h2 className="text-xl font-bold text-accent-primary">Pokémon</h2>
+							<h2 className="text-xl font-bold text-accent-primary">
+								{text.brandName}
+							</h2>
 						)}
 						<Button
 							variant="ghost"
@@ -82,7 +85,7 @@ export default function CollapsibleSidebar() {
 					</nav>
 				</div>
 				<div className="text-center text-sm text-text-secondary">
-					{isExpanded && <p>&copy; 2024 PokéDex</p>}
+					{isExpanded && <p>&copy; {text.copyright}</p>}
 				</div>
 			</div>
 		</div>

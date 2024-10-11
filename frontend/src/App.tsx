@@ -15,10 +15,10 @@ function App() {
 	return (
 		<>
 			{isAuthenticated ? (
-				<>
+				<div className="flex min-h-screen bg-background text-text-primary">
 					<Navbar />
 					<PokemonCollection />
-				</>
+				</div>
 			) : (
 				<AuthForms />
 			)}
