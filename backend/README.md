@@ -44,7 +44,8 @@ myapi/
 - **Installation:** Follow the official [Go installation guide](https://golang.org/doc/install) for your operating system.
 - **Environment Setup:**
   - **GOROOT:** Directory where Go is installed.
-  - **GOPATH:** Workspace for your Go projects. - **PATH:** Include `$GOPATH/bin` and `$GOROOT/bin` in your system's PATH.
+  - **GOPATH:** Workspace for your Go projects.
+  - **PATH:** Include `$GOPATH/bin` and `$GOROOT/bin` in your system's PATH.
 
 ### **Go Modules**
 
