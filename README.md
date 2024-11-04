@@ -11,12 +11,14 @@
    - The branch name will follow your naming convention and will use the issue title.
 #### How to contribute
 1. Go to [porject](https://github.com/users/rakshyak-98/projects/3)
-2. Select task from todo.
-3. [Create issue](https://github.com/rakshyak-98/pokemon-card-game/issues) of the task.
-4. [Create branch](https://github.com/rakshyak-98/pokemon-card-game/branches) of the issue title.
-5. Make desired changes to the branch.
-6. [Create pull request](https://github.com/rakshyak-98/pokemon-card-game/pulls) to the main.
-7. Wait for Pull request review and approval.
+1. Select task from todo.
+1. Create issue by clicking on the **Convert to issue**.
+1. Under the *Development* section on the right click **Create a branch** (Keep the Branch source to main).
+1. Write the description body which include task completed.
+1. Make desired changes to the branch.
+1. Create pull request](https://github.com/rakshyak-98/pokemon-card-game/pulls) to the main.
+1. Label the issue with **complete** after all taks is complete.
+1. Wait for Pull request review and approval.
 #### CodeQL (WIP)
 Descover vulnerabilities across a codebase with CodeQL.
 #### Purpose of Using CodeQL
