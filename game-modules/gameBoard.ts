@@ -4,4 +4,5 @@ interface IGame {
 	bench: TCGCard.Bench[];
 	prizeCards: TCGCard.PriceCards;
 	discardPile: TCGCard.DiscardPile;
+	putCardInActiveSpot(card: TCGCard.BasicPokemon): void;
 }
