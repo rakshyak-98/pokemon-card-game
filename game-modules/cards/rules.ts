@@ -1,4 +1,4 @@
-const Rules = {
+export const Rules = {
 	describe: {
 		zonesOfTCG: {
 			prizeCards:
@@ -14,5 +14,9 @@ const Rules = {
 				"The bottom row of a player’s in-play section is for the Benched Pokémon. Each player may have up to 5 Pokémon on the Bench at any one time. Any Pokémon in play other than the Active Pokémon must be put on the Bench",
 		},
 	},
+	deckLength: "Their must be 60 cards to play the game.",
+	noBasicPokemonInHand:
+		"If you don’t have any Basic Pokémon, what do you do? First, reveal your hand to your opponent and shuffle your hand back into your deck. Then, draw 7 more cards. If you still don’t have any Basic Pokémon, repeat. Each time your opponent shuffles their hand back into their deck because they had no Basic Pokémon, you may draw an extra card!",
 };
+
 export type RulesType = typeof Rules;

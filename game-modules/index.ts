@@ -1,1 +1,3 @@
-class Game {}
+class WinGame{
+
+}
