@@ -1,8 +1,7 @@
 import { Rules } from "./rules";
 
-interface IDeck {
+export interface IDeck {
 	shuffle(): TCGCard.CardType[];
-	draw(): TCGCard.PlayerInHandCardLength<TCGCard.CardType[]>;
 }
 
 export class Deck implements IDeck {
@@ -12,9 +11,6 @@ export class Deck implements IDeck {
 			throw new Error(Rules.deckLength);
 		}
 		this.cards = cards;
-	}
-	draw(): TCGCard.PlayerInHandCardLength<TCGCard.CardType[]> {
-		throw new Error("Method not implemented.");
 	}
 	shuffle(): TCGCard.CardType[] {
 		throw new Error("Method not implemented.");

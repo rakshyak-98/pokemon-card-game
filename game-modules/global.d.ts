@@ -1,4 +1,5 @@
 import { EnergyCard, PokemonCard, TrainerCard } from "./cards/card-types";
+import { IDeck } from "./cards/deck";
 
 declare global {
 	namespace TCGCard {
@@ -9,6 +10,7 @@ declare global {
 		type Bench = CardType[] & { length: 6 };
 		type PriceCards = CardType[] & { length: 6 };
 		type DiscardPile = CardType[];
+		type Deck = IDeck;
 	}
 }
 

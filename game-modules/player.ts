@@ -12,7 +12,10 @@ interface IPlayer {
 
 class Player implements IPlayer {
 	inHandCards: TCGCard.PlayerInHandCardLength<TCGCard.CardType>[];
-	constructor(inHandCards: TCGCard.PlayerInHandCardLength<TCGCard.CardType>[]) {
+	constructor(
+		inHandCards: TCGCard.PlayerInHandCardLength<TCGCard.CardType>[],
+		deck: TCGCard.Deck
+	) {
 		this.inHandCards = inHandCards;
 	}
 	putCardOnActiveSport(card: TCGCard.BasicPokemon): void {
