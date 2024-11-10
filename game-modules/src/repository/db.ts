@@ -7,21 +7,53 @@ try {
 	console.log(error);
 }
 
-const pokemonSchema = new mongoose.Schema({
-	name: String,
-	type: String,
-	hp: Number,
-	attacks: [
-		{
-			name: String,
-			damage: Number,
+const pokemonSchema = new mongoose.Schema(
+	{
+		pokemonType: {
+			type: String,
+			enum: [
+				"Fire",
+				"Water",
+				"Grass",
+				"Electric",
+				"Fighting",
+				"Psychic",
+				"Ghost",
+				"Dragon",
+			],
+			required: true,
 		},
-	],
-	rarity: String,
-	weakness: String,
-	resistance: String,
-	retreatCost: Number,
-});
+		hp: {
+			type: Number,
+			required: true,
+			min: 1,
+		},
+		cardName: {
+			type: String,
+			required: true,
+		},
+		stage: {
+			type: String,
+			enum: ["Basic", "Stage 1", "Stage 2", "Legendary"],
+			required: true,
+		},
+		evolvesFromPokemon: {
+			type: String,
+			required: true,
+		},
+		expansionCode: {
+			type: Number,
+			required: true,
+		},
+		collectorCardNumber: {
+			type: Number,
+			required: true,
+		},
+	},
+	{
+		timestamps: true, // Automatically add createdAt and updatedAt timestamps
+	}
+);
 
 export class Repository {
 	PokemonCard = mongoose.model("PokemonCard", pokemonSchema);
@@ -29,7 +61,8 @@ export class Repository {
 	async getCards() {
 		const data = await this.PokemonCard.find().select("-_id -__v");
 		data.map((d) => {
-			new Card();
+			const data = d.toObject();
+			const {} = data;
 		});
 	}
 }
