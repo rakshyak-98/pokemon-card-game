@@ -1,12 +1,17 @@
-import { Deck } from "./cards/deck";
-import { Board } from "./gameBoard";
+import mongoose from "mongoose";
+import { Repository } from "./repository/db";
 
-function main() {
-	const deck = new Deck();
-	const board = new Board(deck);
-	const player = new Player();
-	player.drawFromDeck(deck);
-	console.log(player.getInHandCards());
+async function main() {
+	const repo = new Repository();
+	try {
+		const data = await repo.getCards();
+		console.log(data);
+		mongoose.connection.close();
+	} finally {
+	}
+	// const board = new Board(deck);
+	// const player = new Player();
+	// player.drawFromDeck(deck);
 }
 
 main();
