@@ -8,7 +8,7 @@ declare global {
 		type BasicPokemon = PokemonCard;
 		type BoardDeck = CardType[] & { length: 60 };
 		type Bench = CardType[] & { length: 6 };
-		type PriceCards = CardType[] & { length: 6 };
+		type PriceCards = CardType[];
 		type DiscardPile = CardType[];
 		type Deck = IDeck;
 	}

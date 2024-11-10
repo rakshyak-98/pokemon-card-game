@@ -1,28 +1,18 @@
 interface IBoard {
-	activePokemon: TCGCard.BasicPokemon;
-	bench: TCGCard.Bench[];
+	activePokemon: TCGCard.BasicPokemon | null;
+	bench: TCGCard.Bench[] | null;
 	deck: TCGCard.Deck;
-	prizeCards: TCGCard.PriceCards;
-	discardPile: TCGCard.DiscardPile;
+	prizeCards: TCGCard.PriceCards | [];
+	discardPile: TCGCard.DiscardPile | [];
 }
 
 export class Board implements IBoard {
-	activePokemon: TCGCard.BasicPokemon;
-	bench: TCGCard.Bench[];
-	deck: TCGCard.Deck;
-	prizeCards: TCGCard.PriceCards;
-	discardPile: TCGCard.DiscardPile;
-	constructor(
-		activePokemon: TCGCard.BasicPokemon,
-		bench: TCGCard.Bench[],
-		prizeCards: TCGCard.PriceCards,
-		discardPile: TCGCard.DiscardPile,
-		deck: TCGCard.Deck
-	) {
-		this.activePokemon = activePokemon;
-		this.prizeCards = prizeCards;
-		this.bench = bench;
-		this.discardPile = discardPile;
+	activePokemon = null;
+	bench = null;
+	deck;
+	discardPile = [];
+	prizeCards = [];
+	constructor(deck: TCGCard.Deck) {
 		this.deck = deck;
 	}
 }
