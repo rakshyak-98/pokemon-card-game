@@ -1,5 +1,9 @@
 export const Rules = {
 	describe: {
+		turnActions: {
+			drawCard:
+				"Start your turn by drawing a card. If there are no cards in your deck at the beginning of your turn and you cannot draw a card, the game is over, and your opponent wins.",
+		},
 		zonesOfTCG: {
 			prizeCards:
 				"Each player has their own Prize cards. Prize cards are 6 cards that each player sets aside, face down, from the top of their own deck while setting up to play. When you Knock Out an opposing Pokémon, you take one of your Prize cards and put it into your hand. If you’re the first one to take your last Prize card, you win!",
