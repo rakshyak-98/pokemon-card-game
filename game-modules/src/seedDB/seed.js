@@ -1,26 +1,58 @@
 // seed.js
 
 const mongoose = require("mongoose");
-const pokemonCards = require("./data");
+const pokemonSeedData = require("./data");
 
 const uri = "mongodb://localhost:27017/pokemonDB"; // Replace with your MongoDB URI
 
 // Define the schema
-const pokemonSchema = new mongoose.Schema({
-	name: String,
-	type: String,
-	hp: Number,
-	attacks: [
-		{
-			name: String,
-			damage: Number,
+const pokemonSchema = new mongoose.Schema(
+	{
+		pokemonType: {
+			type: String,
+			enum: [
+				"Fire",
+				"Water",
+				"Grass",
+				"Electric",
+				"Fighting",
+				"Psychic",
+				"Ghost",
+				"Dragon",
+			],
+			required: true,
 		},
-	],
-	rarity: String,
-	weakness: String,
-	resistance: String,
-	retreatCost: Number,
-});
+		hp: {
+			type: Number,
+			required: true,
+			min: 1,
+		},
+		cardName: {
+			type: String,
+			required: true,
+		},
+		stage: {
+			type: String,
+			enum: ["Basic", "Stage 1", "Stage 2", "Legendary"],
+			required: true,
+		},
+		evolvesFromPokemon: {
+			type: String,
+			required: true,
+		},
+		expansionCode: {
+			type: Number,
+			required: true,
+		},
+		collectorCardNumber: {
+			type: Number,
+			required: true,
+		},
+	},
+	{
+		timestamps: true, // Automatically add createdAt and updatedAt timestamps
+	}
+);
 
 // Define the model
 const PokemonCard = mongoose.model("PokemonCard", pokemonSchema);
@@ -36,7 +68,7 @@ async function seedDatabase() {
 		console.log("Existing data cleared");
 
 		// Insert sample data
-		await PokemonCard.insertMany(pokemonCards);
+		await PokemonCard.insertMany(pokemonSeedData);
 		console.log("Database seeded with Pokémon cards");
 
 		mongoose.connection.close();
