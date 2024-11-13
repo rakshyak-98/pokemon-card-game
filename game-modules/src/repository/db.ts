@@ -65,4 +65,7 @@ export class Repository {
 			const {} = data;
 		});
 	}
+	close() {
+		mongoose.connection.close();
+	}
 }

@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import { Repository } from "./repository/db";
 
 async function main() {
@@ -6,12 +5,11 @@ async function main() {
 	try {
 		const data = await repo.getCards();
 		console.log(data);
-		mongoose.connection.close();
-	} finally {
+		repo.close();
+	} catch (error) {
+		console.error(error);
+		repo.close();
 	}
-	// const board = new Board(deck);
-	// const player = new Player();
-	// player.drawFromDeck(deck);
 }
 
 main();
