@@ -1,5 +1,5 @@
 {
-  "name": "game-modules",
+  "name": "pokemon-tcg-game-modules",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "start": "npm run build && node dist/index.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "rakshyak-98",
   "license": "ISC",
   "description": "",
   "devDependencies": {
