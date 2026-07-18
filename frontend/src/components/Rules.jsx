@@ -105,7 +105,7 @@ const SECTIONS = [
       <>
         <ul>
           <li>Start a match → review opponent preview → lock a party of 3.</li>
-          <li>Use DETAILS on your Active only (your private/public card data).</li>
+          <li>Tap an Active Pokémon in the arena to open its card details.</li>
           <li>
             Drawn power cards fill up to 4 slots on the bottom-right — tap one to use on Active, or keep for next turn.
           </li>

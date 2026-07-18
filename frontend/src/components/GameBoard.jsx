@@ -318,10 +318,12 @@ export const GameBoard = ({ onShowRules }) => {
     };
 
     const renderActiveOptions = () => {
-        if (!me?.activePokemon) {
+        const active = me?.activePokemon;
+        const myTurnLive = isMyTurn && !needsPromote && !cpuThinking;
+
+        if (!active) {
             return (
                 <div className="rail-options">
-                    <span className="zone-label">YOUR OPTIONS</span>
                     <p className="rail-options-hint">
                         {needsPromote ? 'PROMOTE FROM BACK LINE' : 'WAITING…'}
                     </p>
@@ -331,18 +333,8 @@ export const GameBoard = ({ onShowRules }) => {
 
         return (
             <div className="rail-options">
-                <div className="rail-options-header">
-                    <span className="zone-label">YOUR OPTIONS</span>
-                    <button
-                        type="button"
-                        className="pixel-btn details-btn"
-                        onClick={() => openDetails(me.activePokemon, `YOU (${me.id})`)}
-                    >
-                        DETAILS
-                    </button>
-                </div>
                 <div className="rail-options-actions">
-                    {isMyTurn && !needsPromote && !cpuThinking ? (
+                    {myTurnLive ? (
                         <>
                             <button
                                 type="button"
@@ -364,14 +356,15 @@ export const GameBoard = ({ onShowRules }) => {
                             >
                                 CHARGE
                             </button>
-                            {me.activePokemon.attacks?.map((att, i) => (
+                            {(active.attacks || []).map((att, i) => (
                                 <button
                                     key={i}
+                                    type="button"
                                     className="pixel-btn danger attack-button"
                                     onClick={() => actions.attack(i)}
                                     disabled={
                                         !opponent?.activePokemon ||
-                                        (me.activePokemon.energyAttached || 0) < att.cost
+                                        (active.energyAttached || 0) < att.cost
                                     }
                                 >
                                     {att.name} · {att.damage}
@@ -507,7 +500,13 @@ export const GameBoard = ({ onShowRules }) => {
                         <div className="arena-card">
                             {oppActiveDisplay ? (
                                 <>
-                                    <Card card={oppActiveDisplay} size="lg" isActive={true} />
+                                    <Card
+                                        card={oppActiveDisplay}
+                                        size="lg"
+                                        isActive={true}
+                                        className="tap-details"
+                                        onClick={() => openDetails(oppActiveDisplay, opponentLabel)}
+                                    />
                                     {renderActiveHp(oppActiveDisplay)}
                                 </>
                             ) : (
@@ -518,7 +517,13 @@ export const GameBoard = ({ onShowRules }) => {
                         <div className="arena-card">
                             {me?.activePokemon ? (
                                 <>
-                                    <Card card={me.activePokemon} size="lg" isActive={true} />
+                                    <Card
+                                        card={me.activePokemon}
+                                        size="lg"
+                                        isActive={true}
+                                        className="tap-details"
+                                        onClick={() => openDetails(me.activePokemon, `YOU (${me.id})`)}
+                                    />
                                     {renderActiveHp(me.activePokemon)}
                                 </>
                             ) : (
