@@ -1,0 +1,251 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root {
+  /* Arcade CRT palette — Game Boy meets 16-bit stadium */
+  --bg-deep: #1a2f1a;
+  --bg-mid: #2d4a2d;
+  --bg-light: #3e6b3e;
+  --panel-face: #c4d4a8;
+  --panel-dark: #8a9a6e;
+  --panel-light: #e8f0d0;
+  --ink: #1a2f1a;
+  --ink-muted: #4a5c3a;
+  --screen-black: #0d1a0d;
+
+  --accent-gold: #f0c040;
+  --accent-gold-dark: #b8860b;
+  --accent-red: #e04040;
+  --accent-red-dark: #a02828;
+  --accent-cyan: #40c8c8;
+  --accent-blue: #4080d0;
+  --accent-orange: #f07828;
+  --accent-lime: #70e040;
+
+  --type-electric: #f0c040;
+  --type-fire: #e04040;
+  --type-water: #4080d0;
+  --type-grass: #50a030;
+  --type-psychic: #c050a0;
+  --type-neutral: #708070;
+
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-screen: 'VT323', monospace;
+
+  --card-width: 132px;
+  --card-height: 188px;
+  --pixel: 4px;
+  --bevel: 3px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  image-rendering: pixelated;
+}
+
+body {
+  font-family: var(--font-screen);
+  font-size: 20px;
+  background-color: var(--bg-deep);
+  color: var(--panel-light);
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* Brick / block playfield */
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.35)),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 15px,
+      rgba(0, 0, 0, 0.12) 15px,
+      rgba(0, 0, 0, 0.12) 16px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--bg-mid) 0,
+      var(--bg-mid) 31px,
+      var(--bg-light) 31px,
+      var(--bg-light) 32px,
+      var(--bg-deep) 32px,
+      var(--bg-deep) 63px,
+      var(--bg-mid) 63px,
+      var(--bg-mid) 64px
+    );
+  background-size: 100% 100%, 100% 100%, 64px 64px;
+}
+
+/* CRT scanlines overlay */
+body::after {
+  content: '';
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+  animation: scanDrift 8s linear infinite;
+}
+
+@keyframes scanDrift {
+  from { background-position: 0 0; }
+  to { background-position: 0 4px; }
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Block / beveled panels (old-school UI chrome) ── */
+.pixel-panel {
+  background: var(--panel-face);
+  color: var(--ink);
+  border: var(--pixel) solid var(--ink);
+  box-shadow:
+    inset calc(-1 * var(--bevel)) calc(-1 * var(--bevel)) 0 var(--panel-dark),
+    inset var(--bevel) var(--bevel) 0 var(--panel-light),
+    6px 6px 0 rgba(0, 0, 0, 0.45);
+  border-radius: 0;
+}
+
+.pixel-screen {
+  background: var(--screen-black);
+  color: var(--accent-lime);
+  border: var(--pixel) solid var(--ink);
+  box-shadow:
+    inset 4px 4px 0 rgba(0, 0, 0, 0.6),
+    4px 4px 0 rgba(0, 0, 0, 0.35);
+  font-family: var(--font-screen);
+}
+
+.pixel-btn {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--accent-gold);
+  border: var(--pixel) solid var(--ink);
+  border-radius: 0;
+  box-shadow:
+    inset -3px -3px 0 var(--accent-gold-dark),
+    inset 3px 3px 0 #ffe080,
+    4px 4px 0 rgba(0, 0, 0, 0.4);
+  transition: transform 0.05s steps(2), box-shadow 0.05s steps(2);
+  image-rendering: pixelated;
+}
+
+.pixel-btn:hover:not(:disabled) {
+  background: #ffd860;
+  transform: translate(-1px, -1px);
+  box-shadow:
+    inset -3px -3px 0 var(--accent-gold-dark),
+    inset 3px 3px 0 #ffe080,
+    5px 5px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pixel-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow:
+    inset 3px 3px 0 var(--accent-gold-dark),
+    inset -1px -1px 0 #ffe080,
+    1px 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pixel-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.pixel-btn.primary {
+  background: var(--accent-cyan);
+  box-shadow:
+    inset -3px -3px 0 #208888,
+    inset 3px 3px 0 #80e8e8,
+    4px 4px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pixel-btn.primary:hover:not(:disabled) {
+  background: #50d8d8;
+  box-shadow:
+    inset -3px -3px 0 #208888,
+    inset 3px 3px 0 #80e8e8,
+    5px 5px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pixel-btn.danger {
+  background: var(--accent-red);
+  color: #fff8e8;
+  box-shadow:
+    inset -3px -3px 0 var(--accent-red-dark),
+    inset 3px 3px 0 #f08080,
+    4px 4px 0 rgba(0, 0, 0, 0.4);
+}
+
+.pixel-btn.danger:hover:not(:disabled) {
+  background: #f05050;
+  box-shadow:
+    inset -3px -3px 0 var(--accent-red-dark),
+    inset 3px 3px 0 #f08080,
+    5px 5px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* ── Retro animations ── */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.25; }
+}
+
+@keyframes bouncePixel {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes insertCoin {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes slamIn {
+  0% {
+    transform: scale(1.4) translateY(-20px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.95) translateY(2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-blink {
+  animation: blink 1s steps(2) infinite;
+}
+
+.animate-bounce-pixel {
+  animation: bouncePixel 0.6s steps(3) infinite;
+}
+
+.animate-insert-coin {
+  animation: insertCoin 1.2s steps(2) infinite;
+}
+
+.animate-slam-in {
+  animation: slamIn 0.35s steps(4) forwards;
+}

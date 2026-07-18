@@ -1,0 +1,37 @@
+# Local data & databases
+data/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Built binaries
+pokemon-backend
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test & coverage
+*.test
+*.out
+coverage.out
+coverage.html
+*.prof
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Go workspace / vendor (if used locally)
+vendor/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
