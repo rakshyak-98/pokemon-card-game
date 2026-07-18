@@ -52,6 +52,8 @@ func (h *GameHandler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/game/attack", withCORS(h.Attack))
 	mux.HandleFunc("/api/game/end-turn", withCORS(h.EndTurn))
 	mux.HandleFunc("/api/game/promote", withCORS(h.Promote))
+	mux.HandleFunc("/api/game/switch", withCORS(h.Switch))
+	mux.HandleFunc("/api/game/play-power", withCORS(h.PlayPower))
 	mux.HandleFunc("/api/game/actions", withCORS(h.ListActions))
 }
 
@@ -213,6 +215,32 @@ func (h *GameHandler) Promote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.run(w, &command.PromoteCommand{Receiver: h.Facade, PID: req.PlayerID, CardID: req.CardID})
+}
+
+func (h *GameHandler) Switch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req ActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	h.run(w, &command.SwitchCommand{Receiver: h.Facade, PID: req.PlayerID, CardID: req.CardID})
+}
+
+func (h *GameHandler) PlayPower(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req ActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	h.run(w, &command.PlayPowerCommand{Receiver: h.Facade, PID: req.PlayerID, CardID: req.CardID})
 }
 
 func (h *GameHandler) ListActions(w http.ResponseWriter, r *http.Request) {

@@ -18,6 +18,8 @@ const (
 	ActionAttack       = "attack"
 	ActionEndTurn      = "end_turn"
 	ActionPromote      = "promote"
+	ActionSwitch       = "switch"
+	ActionPlayPower    = "play_power"
 )
 
 // Command encapsulates a request as an object (Command pattern).
@@ -40,6 +42,8 @@ type GameActions interface {
 	Attack(playerID string, attackIndex int) error
 	EndTurn(playerID string) error
 	Promote(playerID, cardID string) error
+	Switch(playerID, cardID string) error
+	PlayPower(playerID, cardID string) error
 	State() *models.GameState
 }
 
@@ -174,6 +178,32 @@ func (c *PromoteCommand) Payload() any {
 	return map[string]string{"playerId": c.PID, "cardId": c.CardID}
 }
 func (c *PromoteCommand) Execute() error { return c.Receiver.Promote(c.PID, c.CardID) }
+
+type SwitchCommand struct {
+	Receiver GameActions
+	PID      string
+	CardID   string
+}
+
+func (c *SwitchCommand) Name() string     { return ActionSwitch }
+func (c *SwitchCommand) PlayerID() string { return c.PID }
+func (c *SwitchCommand) Payload() any {
+	return map[string]string{"playerId": c.PID, "cardId": c.CardID}
+}
+func (c *SwitchCommand) Execute() error { return c.Receiver.Switch(c.PID, c.CardID) }
+
+type PlayPowerCommand struct {
+	Receiver GameActions
+	PID      string
+	CardID   string
+}
+
+func (c *PlayPowerCommand) Name() string     { return ActionPlayPower }
+func (c *PlayPowerCommand) PlayerID() string { return c.PID }
+func (c *PlayPowerCommand) Payload() any {
+	return map[string]string{"playerId": c.PID, "cardId": c.CardID}
+}
+func (c *PlayPowerCommand) Execute() error { return c.Receiver.PlayPower(c.PID, c.CardID) }
 
 // MarshalPayload encodes command payload for the audit log.
 func MarshalPayload(c Command) string {

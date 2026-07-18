@@ -169,6 +169,26 @@ export function useGameState() {
         }
     };
 
+    const switchActive = async (cardId) => {
+        if (!guard(ACTIONS.SWITCH, { cardId })) return;
+        try {
+            const res = await axios.post(`${API_BASE}/switch`, { playerId, cardId });
+            applyResult(res.data);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to switch');
+        }
+    };
+
+    const playPower = async (cardId) => {
+        if (!guard(ACTIONS.PLAY_POWER, { cardId })) return;
+        try {
+            const res = await axios.post(`${API_BASE}/play-power`, { playerId, cardId });
+            applyResult(res.data);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to play power card');
+        }
+    };
+
     const isMyTurn = gameState?.currentTurn === playerId;
     const me = gameState?.players?.find((p) => p.id === playerId);
     const opponent = gameState?.players?.find((p) => p.id !== playerId);
@@ -211,6 +231,8 @@ export function useGameState() {
             attack,
             endTurn,
             promote,
+            switchActive,
+            playPower,
         },
     };
 }

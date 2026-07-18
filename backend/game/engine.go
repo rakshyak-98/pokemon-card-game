@@ -95,6 +95,8 @@ func (e *Engine) createBattlePlayer(id string) (models.PlayerState, error) {
 	return models.PlayerState{
 		ID:             id,
 		BattleTeam:     team,
+		PowerDeck:      buildPowerDeck(id),
+		Hand:           []models.Card{},
 		BenchedPokemon: []models.Card{},
 		DiscardPile:    []models.Card{},
 		ProtectShields: rules.ProtectShieldsPerGame,
@@ -322,7 +324,7 @@ func (e *Engine) requirePlayable(playerID string) (*models.PlayerState, error) {
 	return player, nil
 }
 
-// DrawCard acknowledges the turn draw step (no deck in GO mode — marks hasDrawn).
+// DrawCard pulls one special power card from the player's power deck into hand (once per turn).
 func (e *Engine) DrawCard(playerID string) error {
 	player, err := e.requirePlayable(playerID)
 	if err != nil {
@@ -331,8 +333,45 @@ func (e *Engine) DrawCard(playerID string) error {
 	if player.HasDrawn {
 		return errors.New("already drawn this turn")
 	}
+	name, err := drawPowerCard(player)
+	if err != nil {
+		return err
+	}
 	player.HasDrawn = true
-	e.State.LastAction = fmt.Sprintf("%s drew (turn ready)", playerID)
+	e.State.LastAction = fmt.Sprintf("%s drew power card %s", playerID, name)
+	return nil
+}
+
+// PlayPower plays a special power card from hand to boost attack, defense, or heal (once per turn).
+func (e *Engine) PlayPower(playerID, cardID string) error {
+	player, err := e.requirePlayable(playerID)
+	if err != nil {
+		return err
+	}
+	if player.HasPlayedPower {
+		return errors.New("already played a power card this turn")
+	}
+	if player.ActivePokemon == nil {
+		return errors.New("no active pokemon to apply power to")
+	}
+	idx := findCard(player.Hand, cardID)
+	if idx < 0 {
+		return errors.New("power card not found in hand")
+	}
+	card := player.Hand[idx]
+	if card.Type != models.TypePower {
+		return errors.New("card is not a special power card")
+	}
+
+	summary, err := applyPowerEffect(player, card)
+	if err != nil {
+		return err
+	}
+
+	player.Hand = append(player.Hand[:idx], player.Hand[idx+1:]...)
+	player.DiscardPile = append(player.DiscardPile, card)
+	player.HasPlayedPower = true
+	e.State.LastAction = fmt.Sprintf("%s played %s — %s", playerID, card.Name, summary)
 	return nil
 }
 
@@ -394,8 +433,15 @@ func (e *Engine) SelectParty(playerID string, cardIDs []string) error {
 	player.ProtectShields = rules.ProtectShieldsPerGame
 	player.HasAttached = false
 	player.HasDrawn = false
+	player.HasSwitched = false
+	player.HasPlayedPower = false
+	player.AttackBonus = 0
+	player.DefenseBonus = 0
 	player.PartyReady = true
 	player.DiscardPile = nil
+	// Fresh power deck each game so both sides keep leverage.
+	player.PowerDeck = buildPowerDeck(playerID)
+	player.Hand = nil
 	e.State.LastAction = fmt.Sprintf("%s selected battle party", playerID)
 
 	if e.bothPartiesReady() {
@@ -482,6 +528,32 @@ func (e *Engine) Promote(playerID, cardID string) error {
 	return nil
 }
 
+// Switch swaps the active Pokémon with a back-line Pokémon (once per turn).
+func (e *Engine) Switch(playerID, cardID string) error {
+	player, err := e.requirePlayable(playerID)
+	if err != nil {
+		return err
+	}
+	if player.ActivePokemon == nil {
+		return errors.New("no active pokemon to switch out — promote instead")
+	}
+	if player.HasSwitched {
+		return errors.New("already switched this turn")
+	}
+	idx := findCard(player.BenchedPokemon, cardID)
+	if idx < 0 {
+		return errors.New("card not found on back line")
+	}
+
+	incoming := player.BenchedPokemon[idx]
+	outgoing := *player.ActivePokemon
+	player.BenchedPokemon[idx] = outgoing
+	player.ActivePokemon = &incoming
+	player.HasSwitched = true
+	e.State.LastAction = fmt.Sprintf("%s switched to %s", playerID, incoming.Name)
+	return nil
+}
+
 func (e *Engine) AttachEnergy(playerID, energyCardID string) error {
 	player, err := e.requirePlayable(playerID)
 	if err != nil {
@@ -523,8 +595,14 @@ func (e *Engine) Attack(playerID string, attackIndex int) error {
 		return errors.New("opponent has no active pokemon")
 	}
 
-	opponent.ActivePokemon.HP -= attack.Damage
-	e.State.LastAction = fmt.Sprintf("%s used %s for %d damage", playerID, attack.Name, attack.Damage)
+	dmg := computeDamage(attack.Damage, player, opponent)
+	opponent.ActivePokemon.HP -= dmg
+	// Attack bonus is one-shot; defense persists until consumed by a hit.
+	player.AttackBonus = 0
+	if opponent.DefenseBonus > 0 {
+		opponent.DefenseBonus = 0
+	}
+	e.State.LastAction = fmt.Sprintf("%s used %s for %d damage", playerID, attack.Name, dmg)
 
 	if opponent.ActivePokemon.HP <= 0 {
 		e.resolveKnockout(player, opponent)
@@ -577,10 +655,16 @@ func (e *Engine) finishGame(winnerID, message string) {
 		p.ActivePokemon = nil
 		p.BenchedPokemon = nil
 		p.DiscardPile = nil
+		p.Hand = nil
+		p.PowerDeck = buildPowerDeck(p.ID)
 		p.PartyReady = false
 		p.ProtectShields = rules.ProtectShieldsPerGame
 		p.HasAttached = false
 		p.HasDrawn = false
+		p.HasSwitched = false
+		p.HasPlayedPower = false
+		p.AttackBonus = 0
+		p.DefenseBonus = 0
 	}
 	e.State.LastAction += fmt.Sprintf("; select parties for game %d", e.State.GameNumber)
 }
@@ -602,6 +686,8 @@ func (e *Engine) advanceTurn(currentPlayerID string) error {
 	e.State.TurnNumber++
 	opponent.HasDrawn = false
 	opponent.HasAttached = false
+	opponent.HasSwitched = false
+	opponent.HasPlayedPower = false
 	return nil
 }
 

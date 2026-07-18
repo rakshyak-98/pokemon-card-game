@@ -82,6 +82,24 @@ func (e *Engine) cpuActOnce() error {
 		cpu = e.getPlayer(cpuID)
 	}
 
+	// Draw a power card when there is an empty slot and the deck still has cards.
+	if cpu != nil && !cpu.HasDrawn && len(cpu.PowerDeck) > 0 && len(cpu.Hand) < MaxPowerHandSlots {
+		if err := e.DrawCard(cpuID); err != nil {
+			return err
+		}
+		cpu = e.getPlayer(cpuID)
+	}
+
+	// Play the best available power card (heal if hurt, else attack, else defense).
+	if cpu != nil && !cpu.HasPlayedPower && len(cpu.Hand) > 0 && cpu.ActivePokemon != nil {
+		if cardID := cpuPickPower(cpu); cardID != "" {
+			if err := e.PlayPower(cpuID, cardID); err != nil {
+				return err
+			}
+			cpu = e.getPlayer(cpuID)
+		}
+	}
+
 	// Attack with the strongest affordable move if opponent is active.
 	opp := e.getOpponent(cpuID)
 	if cpu.ActivePokemon != nil && opp != nil && opp.ActivePokemon != nil {
@@ -119,4 +137,35 @@ func (e *Engine) cpuPickParty(cpu *models.PlayerState) []string {
 		ids = append(ids, team[i].ID)
 	}
 	return ids
+}
+
+// cpuPickPower chooses a beneficial power card from hand, or "" to skip.
+func cpuPickPower(cpu *models.PlayerState) string {
+	var healID, attackID, defenseID string
+	for _, c := range cpu.Hand {
+		if c.Type != models.TypePower {
+			continue
+		}
+		switch c.Effect {
+		case EffectHeal:
+			if cpu.ActivePokemon != nil && cpu.ActivePokemon.HP < cpu.ActivePokemon.MaxHP {
+				healID = c.ID
+			}
+		case EffectBoostAttack:
+			attackID = c.ID
+		case EffectBoostDefense:
+			defenseID = c.ID
+		}
+	}
+	// Prefer heal when below half HP, otherwise lean into offense.
+	if healID != "" && cpu.ActivePokemon != nil && cpu.ActivePokemon.HP*2 <= cpu.ActivePokemon.MaxHP {
+		return healID
+	}
+	if attackID != "" {
+		return attackID
+	}
+	if healID != "" {
+		return healID
+	}
+	return defenseID
 }

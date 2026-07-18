@@ -10,6 +10,7 @@ export const BATTLE_PARTY_SIZE = 3;
 export const GREAT_LEAGUE_CP_CAP = 1500;
 export const MAX_BEST_BUDDY_BOOSTS = 1;
 export const PROTECT_SHIELDS_PER_GAME = 2;
+export const MAX_POWER_HAND_SLOTS = 4;
 export const DEFAULT_MATCH_WINS_NEEDED = 2;
 export const MAX_BATTLE_SECONDS = 270;
 export const TEAM_PREVIEW_MAX_SECONDS = 120;
@@ -37,5 +38,7 @@ export const ACTIONS = {
   ATTACK: 'attack',
   END_TURN: 'end_turn',
   PROMOTE: 'promote',
+  SWITCH: 'switch',
+  PLAY_POWER: 'play_power',
   USE_SHIELD: 'use_shield',
 };

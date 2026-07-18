@@ -64,6 +64,9 @@ const (
 // ProtectShieldsPerGame — each competitor starts a game with 2 Protect Shields (public info §6.5.1).
 const ProtectShieldsPerGame = 2
 
+// MaxPowerHandSlots — power cards held for Active boosts; use this turn or keep for later.
+const MaxPowerHandSlots = 4
+
 // --- Game phases (adapted for this app) ---
 
 type Phase string

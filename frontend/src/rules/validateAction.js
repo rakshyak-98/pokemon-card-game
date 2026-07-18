@@ -5,6 +5,7 @@ import {
   HARD_BANNED_SPECIES,
   MAX_BATTLE_TEAM_SIZE,
   MAX_BEST_BUDDY_BOOSTS,
+  MAX_POWER_HAND_SLOTS,
   MIN_BATTLE_TEAM_SIZE,
   PHASE,
   ACTIONS,
@@ -114,6 +115,10 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
       if (!isMyTurn) return { ok: false, error: 'Not your turn' };
       if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon' };
       if (me.hasDrawn) return { ok: false, error: 'Already drawn this turn' };
+      if ((me.hand?.length || 0) >= MAX_POWER_HAND_SLOTS) {
+        return { ok: false, error: `Power hand is full (max ${MAX_POWER_HAND_SLOTS}) — use or keep for next turn` };
+      }
+      if (!(me.powerDeck?.length > 0)) return { ok: false, error: 'Power deck is empty' };
       return { ok: true };
     }
 
@@ -148,6 +153,34 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
       if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Promote only during battle' };
       if (me?.activePokemon) return { ok: false, error: 'Active Pokémon still in play' };
       if (!me?.benchedPokemon?.length) return { ok: false, error: 'No benched Pokémon to promote' };
+      return { ok: true };
+    }
+
+    case ACTIONS.SWITCH: {
+      if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Switch only during battle' };
+      if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon to switch out — promote instead' };
+      if (me.hasSwitched) return { ok: false, error: 'Already switched this turn' };
+      if (!me?.benchedPokemon?.length) return { ok: false, error: 'No back-line Pokémon to switch in' };
+      if (!payload.cardId) return { ok: false, error: 'Pick a back-line Pokémon to switch in' };
+      if (!me.benchedPokemon.some((c) => c.id === payload.cardId)) {
+        return { ok: false, error: 'Card not found on back line' };
+      }
+      return { ok: true };
+    }
+
+    case ACTIONS.PLAY_POWER: {
+      if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Play power only during battle' };
+      if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon to apply power to' };
+      if (me.hasPlayedPower) return { ok: false, error: 'Already used a power card this turn — keep the rest for next turn' };
+      if (!payload.cardId) return { ok: false, error: 'Pick a power card from your hand' };
+      const power = (me.hand || []).find((c) => c.id === payload.cardId);
+      if (!power) return { ok: false, error: 'Power card not found in hand' };
+      if (power.type !== 'Power') return { ok: false, error: 'Card is not a special power card' };
+      if (power.effect === 'heal' && me.activePokemon.hp >= me.activePokemon.maxHp) {
+        return { ok: false, error: `${me.activePokemon.name} is already at full HP` };
+      }
       return { ok: true };
     }
 

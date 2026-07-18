@@ -55,8 +55,33 @@
 }
 
 .card.size-lg {
-  --c-w: 128px;
-  --c-h: 180px;
+  --c-w: 240px;
+  --c-h: 340px;
+  --c-pad: 10px;
+  --c-name: 1rem;
+  --c-hp: 1.15rem;
+  --c-type: 0.85rem;
+  --c-art: 72px;
+  --c-attack: 1rem;
+  --c-dmg: 0.95rem;
+}
+
+.card.size-lg .card-header {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+
+.card.size-lg .card-name {
+  max-width: 62%;
+}
+
+.card.size-lg .card-art-box {
+  margin-bottom: 8px;
+  min-height: 160px;
+}
+
+.card.size-lg .attacks-list {
+  gap: 4px;
 }
 
 .card:hover {
@@ -241,6 +266,56 @@
   letter-spacing: 0.04em;
   color: var(--ink-muted);
   margin-bottom: 2px;
+}
+
+.power-effect-label {
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--accent-gold-dark);
+  margin-bottom: 2px;
+}
+
+.card.power {
+  background: linear-gradient(180deg, #fff6d6 0%, var(--panel-face) 55%);
+}
+
+.card.power .card-art-box.power-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card.power .power-art-icon {
+  width: 55%;
+  height: 55%;
+}
+
+.card.power-boost_attack .type-icon.attack,
+.card.power-boost_attack .power-badge .hp-value {
+  color: #c0392b;
+}
+
+.card.power-boost_defense .type-icon.defense,
+.card.power-boost_defense .power-badge .hp-value {
+  color: #1f6feb;
+}
+
+.card.power-heal .type-icon.heal,
+.card.power-heal .power-badge .hp-value {
+  color: #1f9d55;
+}
+
+.card.power .card-type-label {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.type-icon.attack,
+.type-icon.defense,
+.type-icon.heal {
+  flex-shrink: 0;
 }
 
 .energy-attached {

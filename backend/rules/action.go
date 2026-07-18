@@ -20,6 +20,8 @@ const (
 	ActionEndTurn          = "end_turn"
 	ActionPromote          = "promote"
 	ActionUseShield        = "use_shield"
+	ActionSwitch           = "switch"
+	ActionPlayPower        = "play_power"
 )
 
 // ValidateAction checks whether an action is legal for the current handbook-adapted game state.
@@ -55,6 +57,12 @@ func ValidateAction(state *models.GameState, playerID, action string, payload ma
 
 	case ActionPromote:
 		return validatePromote(state, playerID)
+
+	case ActionSwitch:
+		return validateSwitch(state, playerID, payload)
+
+	case ActionPlayPower:
+		return validatePlayPower(state, playerID, payload)
 
 	case ActionUseShield:
 		return validateUseShield(state, playerID)
@@ -156,6 +164,12 @@ func validateDrawCard(state *models.GameState, playerID string) error {
 	if p.HasDrawn {
 		return fmt.Errorf("already drawn this turn")
 	}
+	if len(p.Hand) >= MaxPowerHandSlots {
+		return fmt.Errorf("power hand is full (max %d slots) — use or keep cards for next turn", MaxPowerHandSlots)
+	}
+	if len(p.PowerDeck) == 0 {
+		return fmt.Errorf("power deck is empty")
+	}
 	return nil
 }
 
@@ -206,6 +220,77 @@ func validatePromote(state *models.GameState, playerID string) error {
 	}
 	if len(p.BenchedPokemon) == 0 {
 		return fmt.Errorf("no benched Pokémon to promote")
+	}
+	return nil
+}
+
+func validateSwitch(state *models.GameState, playerID string, payload map[string]any) error {
+	if Phase(state.Phase) != PhaseInBattle {
+		return fmt.Errorf("switch only during battle")
+	}
+	p, err := requirePlayerTurn(state, playerID)
+	if err != nil {
+		return err
+	}
+	if p.ActivePokemon == nil {
+		return fmt.Errorf("no active Pokémon to switch out — promote instead")
+	}
+	if p.HasSwitched {
+		return fmt.Errorf("already switched this turn")
+	}
+	if len(p.BenchedPokemon) == 0 {
+		return fmt.Errorf("no back-line Pokémon to switch in")
+	}
+	cardID, _ := payload["cardId"].(string)
+	if cardID == "" {
+		return fmt.Errorf("switch requires cardId of a back-line Pokémon")
+	}
+	found := false
+	for _, c := range p.BenchedPokemon {
+		if c.ID == cardID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("card not found on back line")
+	}
+	return nil
+}
+
+func validatePlayPower(state *models.GameState, playerID string, payload map[string]any) error {
+	if Phase(state.Phase) != PhaseInBattle {
+		return fmt.Errorf("play power only during battle")
+	}
+	p, err := requirePlayerTurn(state, playerID)
+	if err != nil {
+		return err
+	}
+	if p.ActivePokemon == nil {
+		return fmt.Errorf("no active Pokémon to apply power to")
+	}
+	if p.HasPlayedPower {
+		return fmt.Errorf("already used a power card this turn — keep the rest for next turn")
+	}
+	cardID, _ := payload["cardId"].(string)
+	if cardID == "" {
+		return fmt.Errorf("play_power requires cardId from your hand")
+	}
+	var card *models.Card
+	for i := range p.Hand {
+		if p.Hand[i].ID == cardID {
+			card = &p.Hand[i]
+			break
+		}
+	}
+	if card == nil {
+		return fmt.Errorf("power card not found in hand")
+	}
+	if card.Type != models.TypePower {
+		return fmt.Errorf("card is not a special power card")
+	}
+	if card.Effect == "heal" && p.ActivePokemon.HP >= p.ActivePokemon.MaxHP {
+		return fmt.Errorf("%s is already at full HP", p.ActivePokemon.Name)
 	}
 	return nil
 }

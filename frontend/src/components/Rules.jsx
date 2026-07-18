@@ -79,11 +79,19 @@ const SECTIONS = [
         <ol>
           <li>Lead with your first selected Pokémon; the other two form your back line.</li>
           <li>
+            <strong>Draw Power</strong> once per turn into an empty slot (max 4). Tap a card to use it
+            on your Active this turn, or leave it to keep for later turns.
+          </li>
+          <li>
+            <strong>Play</strong> at most one power card per turn (Attack, Defense, or Heal).
+          </li>
+          <li>
             <strong>Charge Energy</strong> once per turn on your Active (approximates Fast Attack energy gain).
           </li>
           <li>
             <strong>Attack</strong> when you have enough energy, or <strong>End Turn</strong>.
           </li>
+          <li>On your turn, tap a back-line Pokémon to switch it with your active (once per turn).</li>
           <li>After a KO, promote from the back line. If none remain, you lose the game (§6.3).</li>
         </ol>
       </>
@@ -98,6 +106,9 @@ const SECTIONS = [
         <ul>
           <li>Start a match → review opponent preview → lock a party of 3.</li>
           <li>Use DETAILS on your Active only (your private/public card data).</li>
+          <li>
+            Drawn power cards fill up to 4 slots on the bottom-right — tap one to use on Active, or keep for next turn.
+          </li>
           <li>SWAP switches which seat you control on this local client (2-player only).</li>
           <li>Between games, both players select a new party of 3 from the same Battle Team.</li>
         </ul>
@@ -112,8 +123,8 @@ const SECTIONS = [
       <>
         <p>
           Enable <strong>Practice vs CPU</strong> on the start screen to learn the flow solo. The CPU
-          picks a legal party, charges energy, attacks when it can, and promotes after knockouts — so
-          you can focus on handbook timing without a second player.
+          picks a legal party, draws and plays power cards, charges energy, attacks when it can, and
+          promotes after knockouts — so you can focus on handbook timing without a second player.
         </p>
       </>
     ),

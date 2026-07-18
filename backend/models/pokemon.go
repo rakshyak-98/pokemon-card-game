@@ -8,6 +8,7 @@ const (
 	TypePokemon CardType = "Pokemon"
 	TypeEnergy  CardType = "Energy"
 	TypeTrainer CardType = "Trainer"
+	TypePower   CardType = "Power"
 )
 
 type Attack struct {
@@ -53,12 +54,16 @@ type Card struct {
 	Stats          *PokemonStats `json:"stats,omitempty"`
 	CombatPower    int           `json:"combatPower,omitempty"`
 	BestBuddy      bool          `json:"bestBuddy,omitempty"`
+	// Effect / EffectValue are used by special Power cards (attack, defense, heal).
+	Effect      string `json:"effect,omitempty"`
+	EffectValue int    `json:"effectValue,omitempty"`
 }
 
 type PlayerState struct {
 	ID             string `json:"id"`
 	Deck           []Card `json:"deck,omitempty"`
 	Hand           []Card `json:"hand,omitempty"`
+	PowerDeck      []Card `json:"powerDeck,omitempty"`
 	BattleTeam     []Card `json:"battleTeam,omitempty"`
 	ActivePokemon  *Card  `json:"activePokemon"`
 	BenchedPokemon []Card `json:"benchedPokemon"`
@@ -67,6 +72,10 @@ type PlayerState struct {
 	PendingDraw    []Card `json:"pendingDraw,omitempty"`
 	HasDrawn       bool   `json:"hasDrawn"`
 	HasAttached    bool   `json:"hasAttached"`
+	HasSwitched    bool   `json:"hasSwitched"`
+	HasPlayedPower bool   `json:"hasPlayedPower"`
+	AttackBonus    int    `json:"attackBonus,omitempty"`
+	DefenseBonus   int    `json:"defenseBonus,omitempty"`
 	PrizesTaken    int    `json:"prizesTaken"`
 	ProtectShields int    `json:"protectShields"`
 	GamesWon       int    `json:"gamesWon"`

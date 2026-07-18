@@ -171,6 +171,14 @@ func (f *GameFacade) Promote(playerID, cardID string) error {
 	return f.engine.Promote(playerID, cardID)
 }
 
+func (f *GameFacade) Switch(playerID, cardID string) error {
+	return f.engine.Switch(playerID, cardID)
+}
+
+func (f *GameFacade) PlayPower(playerID, cardID string) error {
+	return f.engine.PlayPower(playerID, cardID)
+}
+
 // Ensure GameFacade satisfies command.GameActions at compile time.
 var _ command.GameActions = (*GameFacade)(nil)
 
