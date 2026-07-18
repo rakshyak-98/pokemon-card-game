@@ -163,6 +163,26 @@
   filter: contrast(1.2);
 }
 
+.card-art-image {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  image-rendering: auto;
+  position: relative;
+  z-index: 1;
+  filter: contrast(1.05);
+}
+
+.card-stats-inline {
+  display: block;
+  margin-top: 2px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 5px;
+  color: var(--ink-muted);
+  opacity: 0.9;
+}
+
 /* Body */
 .card-body {
   font-size: 14px;

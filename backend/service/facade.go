@@ -19,9 +19,9 @@ type GameFacade struct {
 	db     store.GameStore
 }
 
-func NewGameFacade(db store.GameStore, memory *store.MemoryStateStore) *GameFacade {
+func NewGameFacade(db store.GameStore, memory *store.MemoryStateStore, catalog []models.Pokemon) *GameFacade {
 	f := &GameFacade{
-		engine: game.NewEngine(),
+		engine: game.NewEngine(catalog),
 		memory: memory,
 		db:     db,
 	}
@@ -57,12 +57,12 @@ func (f *GameFacade) Execute(cmd command.Command) (*models.GameState, error) {
 	}
 
 	logEntry := models.ActionLog{
-		GameID:       gameID,
-		PlayerID:     cmd.PlayerID(),
-		ActionType:   cmd.Name(),
-		PayloadJSON:  command.MarshalPayload(cmd),
-		Success:      err == nil,
-		CreatedAt:    time.Now().UTC(),
+		GameID:      gameID,
+		PlayerID:    cmd.PlayerID(),
+		ActionType:  cmd.Name(),
+		PayloadJSON: command.MarshalPayload(cmd),
+		Success:     err == nil,
+		CreatedAt:   time.Now().UTC(),
 	}
 	if err != nil {
 		logEntry.ErrorMessage = err.Error()

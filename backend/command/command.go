@@ -8,14 +8,14 @@ import (
 
 // Action names for the audit log.
 const (
-	ActionStartGame   = "start_game"
-	ActionDrawCard    = "draw_card"
-	ActionPlayBench   = "play_bench"
-	ActionSetActive   = "set_active"
+	ActionStartGame    = "start_game"
+	ActionDrawCard     = "draw_card"
+	ActionPlayBench    = "play_bench"
+	ActionSetActive    = "set_active"
 	ActionAttachEnergy = "attach_energy"
-	ActionAttack      = "attack"
-	ActionEndTurn     = "end_turn"
-	ActionPromote     = "promote"
+	ActionAttack       = "attack"
+	ActionEndTurn      = "end_turn"
+	ActionPromote      = "promote"
 )
 
 // Command encapsulates a request as an object (Command pattern).

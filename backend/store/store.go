@@ -19,6 +19,10 @@ type GameStore interface {
 	LoadLatestGame() (*models.GameState, error)
 	AppendAction(log models.ActionLog) (models.ActionLog, error)
 	ListActions(gameID string, limit int) ([]models.ActionLog, error)
+	CountPokemon() (int, error)
+	UpsertPokemon(p models.Pokemon) error
+	ListPokemon() ([]models.Pokemon, error)
+	GetPokemon(pokeAPIID int) (*models.Pokemon, error)
 	Close() error
 }
 
@@ -87,8 +91,10 @@ CREATE TABLE IF NOT EXISTS action_logs (
 
 CREATE INDEX IF NOT EXISTS idx_action_logs_game ON action_logs(game_id, created_at);
 `
-	_, err := s.db.Exec(schema)
-	return err
+	if _, err := s.db.Exec(schema); err != nil {
+		return err
+	}
+	return s.migratePokemon()
 }
 
 func (s *SQLiteStore) SaveGame(state *models.GameState) error {

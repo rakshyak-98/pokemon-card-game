@@ -5,7 +5,7 @@ import (
 )
 
 func TestFullTurnLoop(t *testing.T) {
-	e := NewEngine()
+	e := NewEngine(nil)
 	if err := e.StartGame("player1", "player2"); err != nil {
 		t.Fatal(err)
 	}

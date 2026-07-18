@@ -22,7 +22,7 @@ func setupHandler(t *testing.T) *GameHandler {
 		t.Fatalf("open db: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	facade := service.NewGameFacade(db, store.NewMemoryStateStore())
+	facade := service.NewGameFacade(db, store.NewMemoryStateStore(), nil)
 	return NewGameHandler(facade)
 }
 

@@ -19,29 +19,47 @@ const TypeIcon = ({ type, className }) => {
 export const Card = ({ card, className = '', onClick, isPlayable = false, isActive = false }) => {
     if (!card) return <div className="card empty-slot">EMPTY</div>;
 
+    const elementType = card.elementType || (card.name?.includes('Electric') ? 'Electric' : card.type);
+
     return (
         <div
-            className={`card ${card.Type?.toLowerCase() || ''} ${isPlayable ? 'playable' : ''} ${isActive ? 'active-card' : ''} ${className}`}
+            className={`card ${card.type?.toLowerCase() || ''} ${isPlayable ? 'playable' : ''} ${isActive ? 'active-card' : ''} ${className}`}
             onClick={() => onClick && onClick(card)}
         >
             <div className="card-header">
                 <span className="card-name">{card.name}</span>
-                {card.hp && (
+                {card.hp != null && (
                     <div className="card-hp">
                         <span className="hp-label">HP</span>
                         <span className="hp-value">{card.hp}</span>
-                        <TypeIcon type={card.name.includes('Electric') ? 'Electric' : card.Type} />
+                        <TypeIcon type={elementType} />
                     </div>
                 )}
             </div>
 
             <div className="card-art-box">
-                {/* Placeholder for actual Card Art */}
-                <TypeIcon type={card.name.includes('Electric') ? 'Electric' : card.Type} className="card-art-icon" />
+                {card.imageUrl ? (
+                    <img
+                        className="card-art-image"
+                        src={card.imageUrl}
+                        alt={card.name}
+                        loading="lazy"
+                        draggable={false}
+                    />
+                ) : (
+                    <TypeIcon type={elementType} className="card-art-icon" />
+                )}
             </div>
 
             <div className="card-body">
-                <div className="card-type-label">{card.type}</div>
+                <div className="card-type-label">
+                    {card.elementType || card.type}
+                    {card.stats && (
+                        <span className="card-stats-inline">
+                            {' '}ATK {card.stats.attack} / DEF {card.stats.defense}
+                        </span>
+                    )}
+                </div>
                 {card.energyAttached > 0 && (
                     <div className="energy-attached">⚡ ×{card.energyAttached}</div>
                 )}
