@@ -21,9 +21,11 @@ type GameFacade struct {
 	db     store.GameStore
 }
 
-func NewGameFacade(db store.GameStore, memory *store.MemoryStateStore, catalog []models.Pokemon) *GameFacade {
+func NewGameFacade(db store.GameStore, memory *store.MemoryStateStore, catalog []models.Pokemon, powers []models.PowerCard) *GameFacade {
+	engine := game.NewEngine(catalog)
+	engine.SetPowerCatalog(powers)
 	f := &GameFacade{
-		engine: game.NewEngine(catalog),
+		engine: engine,
 		memory: memory,
 		db:     db,
 	}

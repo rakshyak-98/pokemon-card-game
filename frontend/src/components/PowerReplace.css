@@ -1,0 +1,99 @@
+.power-replace-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(5, 13, 8, 0.78);
+}
+
+.power-replace-modal {
+  position: relative;
+  width: min(560px, 100%);
+  padding: 2.25rem 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  text-align: center;
+}
+
+.power-replace-marquee {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.power-replace-title {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  color: var(--ink);
+  margin: 0.25rem 0 0;
+}
+
+.power-replace-hint {
+  font-family: var(--font-screen);
+  font-size: var(--text-lg);
+  color: var(--ink-muted);
+  line-height: var(--leading-normal);
+  max-width: 40ch;
+  margin: 0;
+}
+
+.power-replace-drawn,
+.power-replace-hand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.power-replace-drawn .zone-label,
+.power-replace-hand .zone-label {
+  color: var(--ink-muted);
+}
+
+.power-replace-new {
+  outline: 3px solid var(--accent-gold);
+  box-shadow: 0 0 0 3px rgba(255, 204, 51, 0.35);
+}
+
+.power-replace-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.power-replace-slot {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.power-replace-slot:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.power-replace-slot:hover:not(:disabled) .card {
+  transform: translateY(-4px);
+}
+
+.power-replace-keep {
+  margin-top: 0.25rem;
+}

@@ -23,6 +23,10 @@ type GameStore interface {
 	UpsertPokemon(p models.Pokemon) error
 	ListPokemon() ([]models.Pokemon, error)
 	GetPokemon(pokeAPIID int) (*models.Pokemon, error)
+	CountPowerCards() (int, error)
+	UpsertPowerCard(p models.PowerCard) error
+	ListPowerCards() ([]models.PowerCard, error)
+	GetPowerCard(pokeAPIID int) (*models.PowerCard, error)
 	Close() error
 }
 
@@ -94,7 +98,10 @@ CREATE INDEX IF NOT EXISTS idx_action_logs_game ON action_logs(game_id, created_
 	if _, err := s.db.Exec(schema); err != nil {
 		return err
 	}
-	return s.migratePokemon()
+	if err := s.migratePokemon(); err != nil {
+		return err
+	}
+	return s.migratePowerCards()
 }
 
 func (s *SQLiteStore) SaveGame(state *models.GameState) error {

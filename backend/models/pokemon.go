@@ -39,6 +39,18 @@ type Pokemon struct {
 	Attacks     []Attack     `json:"attacks"`
 }
 
+// PowerCard is a special-card catalog entry seeded from PokeAPI items
+// (stat boosts, healing items, pinch berries, etc.).
+type PowerCard struct {
+	PokeAPIID   int    `json:"pokeApiId"`
+	Name        string `json:"name"`
+	ImageURL    string `json:"imageUrl"`
+	Effect      string `json:"effect"`      // boost_attack | boost_defense | heal
+	EffectValue int    `json:"effectValue"` // magnitude applied in battle
+	Category    string `json:"category,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
 type Card struct {
 	ID             string        `json:"id"`
 	Name           string        `json:"name"`

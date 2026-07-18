@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { Card } from './Card';
 import { CardDetail } from './CardDetail';
 import { PartySelect } from './PartySelect';
+import { PowerReplace } from './PowerReplace';
 import { MAX_POWER_HAND_SLOTS } from '../rules/handbook';
 import './GameBoard.css';
 
@@ -10,12 +11,32 @@ export const GameBoard = ({ onShowRules }) => {
     const {
         gameState, actionLog, loading, error, isMyTurn, me, opponent,
         actions, setPlayerId, playerId, needsPromote, needsPartySelect,
-        vsCPU, setVsCPU, isPractice, cpuThinking
+        vsCPU, setVsCPU, isPractice, cpuThinking, pendingDraw
     } = useGameState();
-    const [selectedBenchedCard, setSelectedBenchedCard] = useState(null);
     const [detailView, setDetailView] = useState(null);
     const [confirmingParty, setConfirmingParty] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [resolvingReplace, setResolvingReplace] = useState(false);
+    const [switchMode, setSwitchMode] = useState(false);
+
+    const isMatchOver = gameState?.status === 'GameOver' || gameState?.phase === 'MatchOver';
+    const needsPowerReplace = Boolean(pendingDraw?.length);
+    const canSwitch =
+        !isMatchOver &&
+        isMyTurn &&
+        !needsPromote &&
+        !needsPowerReplace &&
+        !cpuThinking &&
+        !!me?.activePokemon &&
+        !me?.hasSwitched &&
+        (me?.benchedPokemon?.length ?? 0) > 0;
+
+    // Hooks must run unconditionally (before early returns).
+    useEffect(() => {
+        if (switchMode && !canSwitch) {
+            setSwitchMode(false);
+        }
+    }, [switchMode, canSwitch]);
 
     const openDetails = (card, ownerLabel) => {
         if (!card) return;
@@ -82,40 +103,16 @@ export const GameBoard = ({ onShowRules }) => {
         );
     }
 
-    if (gameState.status === 'GameOver' || gameState.phase === 'MatchOver') {
-        return (
-            <div className="waiting-screen">
-                <div className="arcade-cabinet pixel-panel animate-slam-in">
-                    <div className="arcade-marquee">
-                        {isPractice ? 'PRACTICE OVER' : 'MATCH OVER · §6.4'}
-                    </div>
-                    <h1 className="game-title">GAME OVER</h1>
-                    <p className="winner-banner">
-                        {gameState.winner === gameState.cpuPlayerId
-                            ? 'CPU WINS!'
-                            : gameState.winner === playerId
-                              ? 'YOU WIN!'
-                              : `${gameState.winner} WINS!`}
-                    </p>
-                    <p className="last-action">{gameState.lastAction}</p>
-                    <div className="cabinet-actions">
-                        <button
-                            className="pixel-btn primary start-btn"
-                            onClick={() => actions.startGame({ vsCPU: isPractice })}
-                        >
-                            {isPractice ? 'PRACTICE AGAIN' : 'CONTINUE?'}
-                        </button>
-                        {onShowRules && (
-                            <button type="button" className="pixel-btn rules-link-btn" onClick={onShowRules}>
-                                How to play
-                            </button>
-                        )}
-                    </div>
-                    <p className="insert-coin animate-insert-coin">PRESS START</p>
-                </div>
-            </div>
-        );
-    }
+    const drawnPower = pendingDraw?.[0] || null;
+
+    const resultHeadline =
+        gameState.winner === gameState.cpuPlayerId
+            ? 'CPU WINS!'
+            : gameState.winner === playerId
+              ? 'YOU WIN!'
+              : gameState.winner
+                ? `${gameState.winner} WINS!`
+                : 'MATCH OVER';
 
     if (needsPartySelect || ['TeamPreview', 'PartySelect', 'BetweenGames'].includes(gameState.phase)) {
         if (!me?.partyReady || !opponent?.partyReady) {
@@ -140,20 +137,21 @@ export const GameBoard = ({ onShowRules }) => {
         }
     }
 
-    const handleBenchClick = (card) => {
-        if (!isMyTurn && !needsPromote) return;
-        if (needsPromote && card) {
+    const handleBenchCardClick = (card, ownerLabel) => {
+        if (!card) return;
+
+        if (needsPromote && !isMatchOver && !needsPowerReplace) {
             actions.promote(card.id);
-            setSelectedBenchedCard(null);
             return;
         }
-        if (!isMyTurn || !card || cpuThinking) return;
-        if (me?.activePokemon && !me.hasSwitched) {
+
+        if (switchMode && canSwitch) {
             actions.switchActive(card.id);
-            setSelectedBenchedCard(null);
+            setSwitchMode(false);
             return;
         }
-        setSelectedBenchedCard(selectedBenchedCard?.id === card.id ? null : card);
+
+        openDetails(card, ownerLabel);
     };
 
     const renderBench = (player, isMe) => {
@@ -162,24 +160,46 @@ export const GameBoard = ({ onShowRules }) => {
             if (i < 2) benchSlots[i] = card;
         });
 
+        const pickingPromote = isMe && needsPromote && !isMatchOver && !needsPowerReplace;
+        const pickingSwitch = isMe && switchMode && canSwitch;
+        const selectable = pickingPromote || pickingSwitch;
+        const ownerLabel = isMe ? `YOU (${me?.id})` : opponentLabel;
+
         return (
-            <div className={`bench-area ${isMe ? 'my-bench' : 'opponent-bench'}`}>
-                <span className="zone-label">{isMe ? 'YOUR BACK LINE' : 'OPP BACK LINE'}</span>
+            <div className={`bench-area ${isMe ? 'my-bench' : 'opponent-bench'} ${pickingSwitch ? 'switch-picking' : ''}`}>
+                <span className="zone-label">
+                    {pickingSwitch
+                        ? 'TAP A CARD TO SWITCH IN'
+                        : pickingPromote
+                          ? 'TAP A CARD TO PROMOTE'
+                          : isMe
+                            ? 'YOUR BACK LINE'
+                            : 'OPP BACK LINE'}
+                </span>
                 <div className="bench-slots">
                     {benchSlots.map((card, idx) => (
-                        <div
-                            key={idx}
-                            className="bench-slot-wrapper"
-                            onClick={() => (isMe ? handleBenchClick(card) : null)}
-                        >
+                        <div key={idx} className="bench-slot-wrapper">
                             {card ? (
                                 <Card
-                                    card={isMe ? card : { ...card, energyAttached: undefined, hp: undefined, maxHp: undefined, stats: undefined }}
+                                    card={
+                                        isMe
+                                            ? card
+                                            : {
+                                                ...card,
+                                                energyAttached: undefined,
+                                                hp: undefined,
+                                                maxHp: undefined,
+                                                stats: undefined,
+                                            }
+                                    }
                                     size="sm"
-                                    isPlayable={isMe && (needsPromote || (isMyTurn && !cpuThinking && !!me?.activePokemon && !me?.hasSwitched))}
+                                    compact
+                                    className="tap-details"
+                                    isPlayable={selectable}
+                                    onClick={() => handleBenchCardClick(card, ownerLabel)}
                                 />
                             ) : (
-                                <div className="card empty-slot size-sm">BACK</div>
+                                <div className="card empty-slot size-sm compact">BACK</div>
                             )}
                         </div>
                     ))}
@@ -221,41 +241,60 @@ export const GameBoard = ({ onShowRules }) => {
         fn?.();
     };
 
-    const statusHint = needsPromote
-        ? 'PICK BACK-LINE TO PROMOTE (§6.3)'
-        : isMyTurn
-          ? 'DRAW INTO EMPTY SLOT · USE OR KEEP · CHARGE · ATTACK'
-          : cpuThinking
-            ? 'CPU IS PLAYING…'
-            : 'WAITING FOR OPPONENT';
+    const statusHint = isMatchOver
+        ? 'MATCH COMPLETE'
+        : needsPromote
+          ? 'PICK BACK-LINE TO PROMOTE (§6.3)'
+          : needsPowerReplace
+            ? 'POWER SLOTS FULL — SWAP OR KEEP HAND'
+            : switchMode
+              ? 'TAP A BACK-LINE CARD TO SWITCH IN'
+              : isMyTurn
+                ? 'USE POWER · CHARGE · SWITCH · ATTACK'
+                : cpuThinking
+                  ? 'CPU IS PLAYING…'
+                  : 'WAITING FOR OPPONENT';
 
-    const canDrawPower =
+    const canPlayPower =
+        !isMatchOver &&
         isMyTurn &&
         !needsPromote &&
+        !needsPowerReplace &&
         !cpuThinking &&
-        !!me?.activePokemon &&
-        !me?.hasDrawn &&
-        (me?.hand?.length ?? 0) < MAX_POWER_HAND_SLOTS &&
-        (me?.powerDeck?.length ?? 0) > 0;
+        !!me?.activePokemon;
 
-    const canPlayPower = isMyTurn && !needsPromote && !cpuThinking && !me?.hasPlayedPower && !!me?.activePokemon;
+    const isPowerCardPlayable = (card) => {
+        if (!canPlayPower || !card) return false;
+        if (card.effect === 'heal' && me?.activePokemon?.hp >= me?.activePokemon?.maxHp) {
+            return false;
+        }
+        return true;
+    };
 
     const handlePowerClick = (card) => {
-        if (!canPlayPower || !card) return;
+        if (!isPowerCardPlayable(card)) return;
         actions.playPower(card.id);
+    };
+
+    const resolveReplace = async (cardId) => {
+        setResolvingReplace(true);
+        try {
+            await actions.selectDraw(cardId);
+        } finally {
+            setResolvingReplace(false);
+        }
     };
 
     const renderPowerStrip = () => {
         const hand = me?.hand || [];
         const deckCount = me?.powerDeck?.length ?? 0;
         const slots = Array.from({ length: MAX_POWER_HAND_SLOTS }, (_, i) => hand[i] || null);
-        const nextEmptyIndex = slots.findIndex((c) => !c);
 
         return (
             <div className="power-strip">
                 <div className="power-strip-header">
                     <span className="zone-label">POWER SLOTS ({hand.length}/{MAX_POWER_HAND_SLOTS})</span>
-                    <span className="stat-chip">USE OR KEEP</span>
+                    <span className="stat-chip">AUTO DRAW</span>
                     <span className="stat-chip">DECK {deckCount}</span>
                     {(me?.attackBonus > 0 || me?.defenseBonus > 0) && (
                         <span className="stat-chip boost-chip">
@@ -268,47 +307,31 @@ export const GameBoard = ({ onShowRules }) => {
                 <div className="hand-cards power-hand-strip">
                     {slots.map((card, idx) => {
                         if (card) {
+                            const playable = isPowerCardPlayable(card);
                             return (
                                 <div key={card.id} className="hand-card-wrapper">
                                     <Card
                                         card={card}
                                         size="sm"
-                                        isPlayable={canPlayPower}
-                                        onClick={canPlayPower ? handlePowerClick : undefined}
+                                        isPlayable={playable}
+                                        onClick={playable ? handlePowerClick : undefined}
                                     />
                                     <span className="cp-chip power-chip">
-                                        {canPlayPower ? 'TAP TO USE' : 'KEEP'}
+                                        {playable ? 'TAP TO USE' : 'HOLD'}
                                     </span>
                                 </div>
                             );
                         }
 
-                        const isNextDrawSlot = idx === nextEmptyIndex;
-                        const canFill = canDrawPower && isNextDrawSlot;
                         return (
                             <div key={`empty-power-${idx}`} className="hand-card-wrapper">
-                                <button
-                                    type="button"
-                                    className={`card empty-slot size-sm power-draw-slot ${canFill ? 'playable' : ''}`}
-                                    onClick={() => canFill && actions.drawCard()}
-                                    disabled={!canFill}
-                                    title={
-                                        me?.hasDrawn
-                                            ? 'Already drew this turn — keep cards for next turn'
-                                            : hand.length >= MAX_POWER_HAND_SLOTS
-                                              ? 'All 4 power slots are full'
-                                              : deckCount === 0
-                                                ? 'Power deck is empty'
-                                                : isNextDrawSlot
-                                                  ? 'Draw 1 power card into this slot (once per turn)'
-                                                  : 'Fill earlier empty slots first'
-                                    }
+                                <div
+                                    className="card empty-slot size-sm power-draw-slot"
+                                    title="Empty slot — filled automatically at turn start"
                                 >
-                                    {me?.hasDrawn ? 'EMPTY' : canFill ? 'DRAW' : 'SLOT'}
-                                </button>
-                                <span className="cp-chip power-chip">
-                                    {canFill ? '1/TURN' : `SLOT ${idx + 1}`}
-                                </span>
+                                    {me?.hasDrawn ? 'EMPTY' : 'AUTO'}
+                                </div>
+                                <span className="cp-chip power-chip">SLOT {idx + 1}</span>
                             </div>
                         );
                     })}
@@ -319,13 +342,14 @@ export const GameBoard = ({ onShowRules }) => {
 
     const renderActiveOptions = () => {
         const active = me?.activePokemon;
-        const myTurnLive = isMyTurn && !needsPromote && !cpuThinking;
+        const myTurnLive =
+            !isMatchOver && isMyTurn && !needsPromote && !needsPowerReplace && !cpuThinking;
 
         if (!active) {
             return (
                 <div className="rail-options">
                     <p className="rail-options-hint">
-                        {needsPromote ? 'PROMOTE FROM BACK LINE' : 'WAITING…'}
+                        {isMatchOver ? 'MATCH OVER' : needsPromote ? 'PROMOTE FROM BACK LINE' : 'WAITING…'}
                     </p>
                 </div>
             );
@@ -338,30 +362,41 @@ export const GameBoard = ({ onShowRules }) => {
                         <>
                             <button
                                 type="button"
-                                className="pixel-btn primary draw-btn"
-                                onClick={actions.drawCard}
-                                disabled={!canDrawPower}
-                            >
-                                {me.hasDrawn
-                                    ? 'KEEP FOR NEXT'
-                                    : (me.hand?.length || 0) >= MAX_POWER_HAND_SLOTS
-                                      ? 'SLOTS FULL'
-                                      : 'DRAW POWER'}
-                            </button>
-                            <button
-                                type="button"
                                 className="pixel-btn primary attach-btn"
-                                onClick={() => actions.attachEnergy('')}
+                                onClick={() => {
+                                    setSwitchMode(false);
+                                    actions.attachEnergy('');
+                                }}
                                 disabled={me.hasAttached}
                             >
                                 CHARGE
+                            </button>
+                            <button
+                                type="button"
+                                className={`pixel-btn switch-btn ${switchMode ? 'is-active' : ''}`}
+                                onClick={() => setSwitchMode((on) => !on)}
+                                disabled={!canSwitch && !switchMode}
+                                title={
+                                    me.hasSwitched
+                                        ? 'Already switched this turn'
+                                        : !(me?.benchedPokemon?.length > 0)
+                                          ? 'No back-line Pokémon to switch in'
+                                          : switchMode
+                                            ? 'Cancel switch'
+                                            : 'Switch active with a back-line Pokémon'
+                                }
+                            >
+                                {switchMode ? 'CANCEL' : me.hasSwitched ? 'SWITCHED' : 'SWITCH'}
                             </button>
                             {(active.attacks || []).map((att, i) => (
                                 <button
                                     key={i}
                                     type="button"
                                     className="pixel-btn danger attack-button"
-                                    onClick={() => actions.attack(i)}
+                                    onClick={() => {
+                                        setSwitchMode(false);
+                                        actions.attack(i);
+                                    }}
                                     disabled={
                                         !opponent?.activePokemon ||
                                         (active.energyAttached || 0) < att.cost
@@ -373,14 +408,23 @@ export const GameBoard = ({ onShowRules }) => {
                             <button
                                 type="button"
                                 className="pixel-btn end-turn-btn"
-                                onClick={actions.endTurn}
+                                onClick={() => {
+                                    setSwitchMode(false);
+                                    actions.endTurn();
+                                }}
                             >
                                 END TURN
                             </button>
                         </>
                     ) : (
                         <p className="rail-options-hint">
-                            {cpuThinking ? 'CPU TURN…' : isMyTurn ? 'PROMOTE FIRST' : 'WAIT FOR TURN'}
+                            {needsPowerReplace
+                                ? 'RESOLVE POWER DRAW…'
+                                : cpuThinking
+                                  ? 'CPU TURN…'
+                                  : isMyTurn
+                                    ? 'PROMOTE FIRST'
+                                    : 'WAIT FOR TURN'}
                         </p>
                     )}
                 </div>
@@ -388,16 +432,22 @@ export const GameBoard = ({ onShowRules }) => {
         );
     };
 
-    const turnLabel = needsPromote
-        ? 'PROMOTE!'
-        : cpuThinking
-          ? 'CPU TURN'
-          : isMyTurn
-            ? 'YOUR TURN'
-            : 'WAIT';
+    const turnLabel = isMatchOver
+        ? 'GAME OVER'
+        : needsPromote
+          ? 'PROMOTE!'
+          : needsPowerReplace
+            ? 'SWAP POWER'
+            : switchMode
+              ? 'PICK SWITCH'
+              : cpuThinking
+                ? 'CPU TURN'
+                : isMyTurn
+                  ? 'YOUR TURN'
+                  : 'WAIT';
 
     return (
-        <div className="game-board">
+        <div className={`game-board ${isMatchOver ? 'match-over' : ''}`}>
             <div className={`board-menu ${menuOpen ? 'open' : ''}`}>
                 <button
                     type="button"
@@ -567,6 +617,59 @@ export const GameBoard = ({ onShowRules }) => {
                     ownerLabel={detailView.ownerLabel}
                     onClose={() => setDetailView(null)}
                 />
+            )}
+
+            {needsPowerReplace && drawnPower && (
+                <PowerReplace
+                    drawn={drawnPower}
+                    hand={me?.hand || []}
+                    resolving={resolvingReplace}
+                    onReplace={(cardId) => resolveReplace(cardId)}
+                    onKeep={() => resolveReplace('_keep')}
+                />
+            )}
+
+            {isMatchOver && (
+                <div
+                    className="game-result-backdrop"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="game-result-title"
+                >
+                    <div className="game-result-modal pixel-panel animate-slam-in">
+                        <div className="arcade-marquee game-result-marquee">
+                            {isPractice ? 'PRACTICE OVER' : 'MATCH OVER · §6.4'}
+                        </div>
+                        <h2 id="game-result-title" className="game-result-title">
+                            GAME OVER
+                        </h2>
+                        <p className="winner-banner">{resultHeadline}</p>
+                        {gameState.lastAction && (
+                            <p className="game-result-detail">{gameState.lastAction}</p>
+                        )}
+                        <div className="game-result-score">
+                            <span className="stat-chip">YOU {me?.gamesWon || 0}</span>
+                            <span className="stat-chip">
+                                {isPractice ? 'CPU' : 'OPP'} {opponent?.gamesWon || 0}
+                            </span>
+                        </div>
+                        <div className="game-result-actions">
+                            <button
+                                type="button"
+                                className="pixel-btn primary start-btn"
+                                onClick={() => actions.startGame({ vsCPU: isPractice })}
+                            >
+                                {isPractice ? 'PRACTICE AGAIN' : 'PLAY AGAIN'}
+                            </button>
+                            {onShowRules && (
+                                <button type="button" className="pixel-btn rules-link-btn" onClick={onShowRules}>
+                                    How to play
+                                </button>
+                            )}
+                        </div>
+                        <p className="insert-coin animate-insert-coin">PRESS START</p>
+                    </div>
+                </div>
             )}
         </div>
     );

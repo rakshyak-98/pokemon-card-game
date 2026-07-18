@@ -148,8 +148,21 @@
     6px 6px 0 rgba(0, 0, 0, 0.5);
 }
 
-.card.active-card:hover {
-  transform: translateY(-4px);
+.card.compact {
+  padding: 4px;
+}
+
+.card.compact .card-art-box {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.card.compact .card-art-image {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
 }
 
 /* Header */

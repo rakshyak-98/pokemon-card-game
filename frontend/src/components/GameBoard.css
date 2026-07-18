@@ -1,7 +1,7 @@
 .game-board {
   position: relative;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) clamp(11rem, 30dvh, 22rem);
   height: 100vh;
   height: 100dvh;
   width: 100%;
@@ -267,10 +267,153 @@
 
 .bottom-rail {
   justify-content: flex-start;
+  align-items: stretch;
+  min-height: 0;
+  height: 100%;
+  padding: 0.4rem 0.65rem 0.45rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  container-type: size;
+  /*
+   * Card face must fit under zone labels / chips inside this rail.
+   * Reserve header + SLOT chip + gaps + rail padding (~4.25rem).
+   */
+  --rail-chrome: 4.25rem;
+  --rail-card-h: clamp(88px, calc(100cqh - var(--rail-chrome)), 176px);
+  --rail-card-w: calc(var(--rail-card-h) * 0.72);
 }
 
 .bottom-rail .rail-cards {
   width: 100%;
+  height: 100%;
+  min-height: 0;
+  align-items: stretch;
+  gap: 1rem;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+/* Larger playable faces in the bottom tray — hard-capped to rail height */
+.bottom-rail .card.size-sm,
+.bottom-rail .card.empty-slot.size-sm {
+  --c-w: var(--rail-card-w);
+  --c-h: var(--rail-card-h);
+  width: var(--rail-card-w);
+  height: var(--rail-card-h);
+  max-width: 100%;
+  max-height: calc(100% - 1.2rem);
+  flex: 0 1 auto;
+  --c-pad: clamp(4px, calc(var(--rail-card-h) * 0.04), 8px);
+  --c-name: clamp(0.58rem, calc(var(--rail-card-h) * 0.0055), 0.8rem);
+  --c-hp: clamp(0.68rem, calc(var(--rail-card-h) * 0.0065), 0.95rem);
+  --c-type: clamp(0.55rem, calc(var(--rail-card-h) * 0.005), 0.7rem);
+  --c-art: clamp(28px, calc(var(--rail-card-h) * 0.28), 52px);
+  --c-attack: clamp(0.65rem, calc(var(--rail-card-h) * 0.0055), 0.85rem);
+  --c-dmg: clamp(0.6rem, calc(var(--rail-card-h) * 0.005), 0.78rem);
+}
+
+.bottom-rail .card.size-sm .card-art-box {
+  min-height: 0;
+  flex: 1;
+}
+
+.bottom-rail .card.size-sm .card-body {
+  display: flex;
+}
+
+.bottom-rail .hand-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.12rem;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.bottom-rail .hand-card-wrapper .cp-chip {
+  flex-shrink: 0;
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* Back line: grow cards into the free height under the zone label */
+.bottom-rail .bench-slot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.1rem;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.bottom-rail .bench-area.switch-picking .zone-label {
+  color: var(--accent-gold-dark);
+  animation: blink 1s steps(2) infinite;
+}
+
+.rail-options-actions .switch-btn.is-active {
+  background: var(--accent-gold);
+  color: var(--ink);
+  box-shadow:
+    inset -2px -2px 0 var(--accent-gold-dark),
+    inset 2px 2px 0 #ffe9a0,
+    3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.bottom-rail .bench-area {
+  /* Slightly larger than power-card faces in the same bottom rail */
+  --bench-card-h: calc(var(--rail-card-h) * 1.12);
+  --bench-card-w: calc(var(--bench-card-h) * 0.72);
+}
+
+.bottom-rail .bench-area .card.size-sm,
+.bottom-rail .bench-area .card.empty-slot.size-sm {
+  --c-w: var(--bench-card-w);
+  --c-h: var(--bench-card-h);
+  width: var(--bench-card-w);
+  height: var(--bench-card-h);
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: calc(100% - 1.2rem);
+  max-width: 100%;
+  aspect-ratio: 72 / 100;
+  --c-pad: clamp(4px, calc(var(--bench-card-h) * 0.04), 8px);
+  --c-art: clamp(28px, calc(var(--bench-card-h) * 0.55), 96px);
+  /* Tighter drop shadow so neighbors don't collide */
+  box-shadow:
+    inset -2px -2px 0 var(--panel-dark),
+    inset 2px 2px 0 var(--panel-light),
+    2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.bottom-rail .bench-area .card.compact .card-art-box {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+/* No hover lift / stacking — prevents back-line cards overlapping */
+.bottom-rail .bench-area .card:hover,
+.bottom-rail .bench-area .card.tap-details:hover,
+.bottom-rail .bench-area .card.playable:hover {
+  transform: none;
+  z-index: auto;
+}
+
+.bottom-rail .bench-area .card.playable {
+  animation: none;
+  box-shadow:
+    inset -2px -2px 0 var(--panel-dark),
+    inset 2px 2px 0 var(--panel-light),
+    0 0 0 2px var(--accent-gold),
+    2px 2px 0 rgba(0, 0, 0, 0.35);
 }
 
 .rail-meta {
@@ -310,13 +453,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.25rem;
+  gap: 0.35rem;
   flex: 1 1 auto;
   min-width: 14rem;
   max-width: 32rem;
   margin: 0;
   padding: 0;
-  align-self: flex-end;
+  align-self: stretch;
+  height: 100%;
 }
 
 .rail-options-header {
@@ -344,9 +488,11 @@
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: center;
-  gap: 0.35rem;
+  align-content: flex-end;
+  gap: 0.4rem;
   width: 100%;
-  min-height: var(--card-height-sm, 100px);
+  flex: 1;
+  min-height: 0;
 }
 
 .rail-options-actions .pixel-btn {
@@ -373,7 +519,18 @@
 .card-rail .bench-area {
   width: auto;
   flex-shrink: 0;
-  align-self: flex-end;
+  align-self: stretch;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  justify-content: flex-start;
+  gap: 0.2rem;
+  overflow: hidden;
+}
+
+.card-rail .bench-area .zone-label {
+  flex-shrink: 0;
+  line-height: 1.1;
 }
 
 .card-rail .hand-cards {
@@ -664,19 +821,24 @@
 
 .bench-slots {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   flex-wrap: nowrap;
   justify-content: center;
   align-items: flex-end;
   overflow-x: auto;
+  overflow-y: hidden;
   max-width: 100%;
-  padding-bottom: 2px;
-  min-height: var(--card-height-sm, 100px);
+  padding: 0 0.25rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .bench-slot-wrapper {
   position: relative;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  height: 100%;
+  min-height: 0;
 }
 
 .action-log ul {
@@ -797,11 +959,15 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.25rem;
   min-width: 0;
+  min-height: 0;
   flex: 0 1 auto;
-  align-self: flex-end;
+  align-self: stretch;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .power-strip-header {
@@ -810,16 +976,23 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.35rem;
-  min-height: 1.1rem;
+  min-height: 1rem;
+  max-height: 1.35rem;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .hand-cards.power-hand-strip {
   justify-content: flex-end;
-  align-items: flex-end;
-  flex: 0 1 auto;
+  align-items: stretch;
+  flex: 1 1 auto;
   min-width: 0;
-  min-height: var(--card-height-sm, 100px);
+  min-height: 0;
+  height: auto;
+  max-height: 100%;
   gap: 0.75rem;
+  padding: 0;
+  overflow: hidden;
 }
 
 .power-empty-slot {
@@ -886,6 +1059,17 @@
     padding: 0.35rem;
     padding-top: 2.6rem;
     gap: 0.35rem;
+    grid-template-rows: auto minmax(0, 1fr) clamp(10rem, 32dvh, 18rem);
+  }
+
+  .bottom-rail {
+    --rail-chrome: 4rem;
+    --rail-card-h: clamp(84px, calc(100cqh - var(--rail-chrome)), 160px);
+    padding: 0.3rem 0.45rem 0.35rem;
+  }
+
+  .bottom-rail .rail-cards {
+    gap: 0.65rem;
   }
 
   .mid-row {
@@ -931,6 +1115,15 @@
 }
 
 @media (max-height: 820px) {
+  .game-board {
+    grid-template-rows: auto minmax(0, 1fr) clamp(9.5rem, 28dvh, 16rem);
+  }
+
+  .bottom-rail {
+    --rail-chrome: 3.9rem;
+    --rail-card-h: clamp(80px, calc(100cqh - var(--rail-chrome)), 148px);
+  }
+
   .arena-faceoff .card.size-lg {
     --c-w: 250px;
     --c-h: 350px;
@@ -972,14 +1165,115 @@
     --c-art: 24px;
   }
 
+  /* Bottom-tray cards keep fluid sizing via .bottom-rail .card.size-sm */
   .card.size-sm {
     --c-w: 72px;
     --c-h: 100px;
     --c-name: 0.5rem;
     --c-hp: 0.6rem;
   }
+}
 
-  .card.size-sm .card-body {
+@media (max-height: 680px) {
+  .game-board {
+    grid-template-rows: auto minmax(0, 1fr) clamp(8.5rem, 34dvh, 14rem);
+  }
+
+  .bottom-rail {
+    --rail-chrome: 3.6rem;
+    --rail-card-h: clamp(76px, calc(100cqh - var(--rail-chrome)), 128px);
+  }
+
+  .bottom-rail .card.size-sm .card-body {
     display: none;
   }
+}
+
+/* ── Match result popup ── */
+.game-board.match-over {
+  pointer-events: none;
+}
+
+.game-board.match-over .game-result-backdrop {
+  pointer-events: auto;
+}
+
+.game-result-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(5, 13, 8, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.game-result-modal {
+  position: relative;
+  width: min(420px, 100%);
+  padding: 2.25rem 1.35rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.game-result-marquee {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.game-result-title {
+  font-family: var(--font-ui);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  color: var(--ink);
+  margin: 0.35rem 0 0;
+}
+
+.game-result-modal .winner-banner {
+  margin: 0;
+}
+
+.game-result-detail {
+  font-family: var(--font-screen);
+  font-size: var(--text-lg);
+  color: var(--ink-muted);
+  line-height: var(--leading-normal);
+  max-width: 34ch;
+  margin: 0;
+}
+
+.game-result-score {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.game-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+  width: 100%;
+}
+
+.game-result-actions .pixel-btn {
+  margin: 0;
+}
+
+.game-result-modal .insert-coin {
+  margin-top: 0.25rem;
+  color: var(--ink-muted);
 }

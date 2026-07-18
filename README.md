@@ -11,7 +11,7 @@ Recreate the core loop of a Pokémon GO tournament match as a local full-stack a
 - **Battle** — charge energy, attack, promote from the back line after a KO
 - **Win** — take games by KOing the opponent’s last Pokémon; match is best-of-three
 
-The backend seeds Gen 1 Pokémon (ids 1–151) from [PokeAPI](https://pokeapi.co) into a local SQLite database and drives game state, persistence, handbook rule validation, and an action audit log. The React frontend validates actions client-side before API calls and talks through Vite’s proxy.
+The backend seeds Gen 1 Pokémon (ids 1–151) and battle power cards (X Attack, potions, berries, …) from [PokeAPI](https://pokeapi.co) into a local SQLite database and drives game state, persistence, handbook rule validation, and an action audit log. The React frontend validates actions client-side before API calls and talks through Vite’s proxy.
 
 ## Stack
 
@@ -32,7 +32,7 @@ cd backend
 go run .
 ```
 
-The API listens on [http://localhost:8080](http://localhost:8080). On first boot it may take a moment to seed the Pokémon catalog from PokeAPI.
+The API listens on [http://localhost:8080](http://localhost:8080). On first boot it may take a moment to seed the Pokémon and power-card catalogs from PokeAPI.
 
 ### 2. Start the frontend
 

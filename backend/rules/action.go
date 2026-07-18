@@ -40,7 +40,10 @@ func ValidateAction(state *models.GameState, playerID, action string, payload ma
 	case ActionDrawCard:
 		return validateDrawCard(state, playerID)
 
-	case ActionSelectDraw, ActionPlayBench:
+	case ActionSelectDraw:
+		return validateSelectDraw(state, playerID, payload)
+
+	case ActionPlayBench:
 		return fmt.Errorf("%s is not used in Pokémon GO tournament battles (handbook §6)", action)
 
 	case ActionAttachEnergy:
@@ -158,19 +161,42 @@ func validateDrawCard(state *models.GameState, playerID string) error {
 	if err != nil {
 		return err
 	}
+	if len(p.PendingDraw) > 0 {
+		return fmt.Errorf("choose a power card to replace (or keep hand) first")
+	}
 	if p.ActivePokemon == nil {
 		return fmt.Errorf("no active Pokémon")
 	}
 	if p.HasDrawn {
 		return fmt.Errorf("already drawn this turn")
 	}
-	if len(p.Hand) >= MaxPowerHandSlots {
-		return fmt.Errorf("power hand is full (max %d slots) — use or keep cards for next turn", MaxPowerHandSlots)
-	}
 	if len(p.PowerDeck) == 0 {
 		return fmt.Errorf("power deck is empty")
 	}
 	return nil
+}
+
+func validateSelectDraw(state *models.GameState, playerID string, payload map[string]any) error {
+	if Phase(state.Phase) != PhaseInBattle {
+		return fmt.Errorf("resolve power draw only during battle")
+	}
+	p, err := requirePlayerTurn(state, playerID)
+	if err != nil {
+		return err
+	}
+	if len(p.PendingDraw) == 0 {
+		return fmt.Errorf("no pending power card to place")
+	}
+	cardID, _ := payload["cardId"].(string)
+	if cardID == "" || cardID == "_keep" {
+		return nil
+	}
+	for _, c := range p.Hand {
+		if c.ID == cardID {
+			return nil
+		}
+	}
+	return fmt.Errorf("hand card not found to replace")
 }
 
 func validateSetActive(state *models.GameState, playerID string) error {
@@ -268,9 +294,6 @@ func validatePlayPower(state *models.GameState, playerID string, payload map[str
 	}
 	if p.ActivePokemon == nil {
 		return fmt.Errorf("no active Pokémon to apply power to")
-	}
-	if p.HasPlayedPower {
-		return fmt.Errorf("already used a power card this turn — keep the rest for next turn")
 	}
 	cardID, _ := payload["cardId"].(string)
 	if cardID == "" {

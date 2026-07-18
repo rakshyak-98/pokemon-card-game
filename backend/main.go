@@ -33,15 +33,26 @@ func main() {
 	}
 	defer db.Close()
 
+	client := pokeapi.NewClient()
+	seedForce := os.Getenv("POKEAPI_SEED_FORCE") == "1"
+	powerForce := seedForce || os.Getenv("POWER_SEED_FORCE") == "1"
+
 	seedFrom := envInt("POKEAPI_SEED_FROM", 1)
 	seedTo := envInt("POKEAPI_SEED_TO", 151)
-	if err := pokeapi.SeedIfEmpty(db, pokeapi.NewClient(), pokeapi.SeedOptions{
+	if err := pokeapi.SeedIfEmpty(db, client, pokeapi.SeedOptions{
 		FromID:  seedFrom,
 		ToID:    seedTo,
 		Workers: envInt("POKEAPI_SEED_WORKERS", 6),
-		Force:   os.Getenv("POKEAPI_SEED_FORCE") == "1",
+		Force:   seedForce,
 	}); err != nil {
 		log.Printf("warning: pokeapi seed failed (using fallback catalog): %v", err)
+	}
+
+	if err := pokeapi.SeedPowerIfEmpty(db, client, pokeapi.PowerSeedOptions{
+		Workers: envInt("POKEAPI_SEED_WORKERS", 6),
+		Force:   powerForce,
+	}); err != nil {
+		log.Printf("warning: power card seed failed (using fallback templates): %v", err)
 	}
 
 	catalog, err := db.ListPokemon()
@@ -50,14 +61,22 @@ func main() {
 	}
 	log.Printf("loaded %d pokemon into deck catalog\n", len(catalog))
 
+	powers, err := db.ListPowerCards()
+	if err != nil {
+		log.Fatalf("load power card catalog: %v", err)
+	}
+	log.Printf("loaded %d power cards into special-card catalog\n", len(powers))
+
 	memory := store.NewMemoryStateStore()
-	facade := service.NewGameFacade(db, memory, catalog)
+	facade := service.NewGameFacade(db, memory, catalog, powers)
 	gameHandler := handlers.NewGameHandler(facade)
 	pokemonHandler := handlers.NewPokemonHandler(db)
+	powerHandler := handlers.NewPowerHandler(db)
 
 	mux := http.NewServeMux()
 	gameHandler.Register(mux)
 	pokemonHandler.Register(mux)
+	powerHandler.Register(mux)
 	mux.Handle("/", http.FileServer(http.Dir("public")))
 
 	log.Printf("Server starting on %s (sqlite=%s)\n", addr, dsn)

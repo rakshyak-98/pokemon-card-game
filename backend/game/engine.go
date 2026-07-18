@@ -15,8 +15,9 @@ import (
 
 // Engine owns mutable game state and turn rules (State-machine style transitions).
 type Engine struct {
-	State   *models.GameState
-	catalog []models.Pokemon
+	State        *models.GameState
+	catalog      []models.Pokemon
+	powerCatalog []models.PowerCard
 }
 
 func NewEngine(catalog []models.Pokemon) *Engine {
@@ -95,7 +96,7 @@ func (e *Engine) createBattlePlayer(id string) (models.PlayerState, error) {
 	return models.PlayerState{
 		ID:             id,
 		BattleTeam:     team,
-		PowerDeck:      buildPowerDeck(id),
+		PowerDeck:      e.buildPowerDeck(id),
 		Hand:           []models.Card{},
 		BenchedPokemon: []models.Card{},
 		DiscardPile:    []models.Card{},
@@ -316,7 +317,7 @@ func (e *Engine) requirePlayable(playerID string) (*models.PlayerState, error) {
 		return nil, err
 	}
 	if len(player.PendingDraw) > 0 {
-		return nil, errors.New("must finish wonder pick first")
+		return nil, errors.New("choose a power card to replace (or keep hand)")
 	}
 	if player.ActivePokemon == nil && len(player.BenchedPokemon) > 0 {
 		return nil, errors.New("must promote a benched pokemon first")
@@ -325,6 +326,7 @@ func (e *Engine) requirePlayable(playerID string) (*models.PlayerState, error) {
 }
 
 // DrawCard pulls one special power card from the player's power deck into hand (once per turn).
+// If all power slots are full, the card goes to PendingDraw for a swap/keep choice.
 func (e *Engine) DrawCard(playerID string) error {
 	player, err := e.requirePlayable(playerID)
 	if err != nil {
@@ -333,23 +335,57 @@ func (e *Engine) DrawCard(playerID string) error {
 	if player.HasDrawn {
 		return errors.New("already drawn this turn")
 	}
-	name, err := drawPowerCard(player)
+	if player.ActivePokemon == nil {
+		return errors.New("no active pokemon")
+	}
+	name, pending, err := drawPowerCard(player)
 	if err != nil {
 		return err
 	}
 	player.HasDrawn = true
-	e.State.LastAction = fmt.Sprintf("%s drew power card %s", playerID, name)
+	if pending {
+		e.State.LastAction = fmt.Sprintf("%s drew %s — power slots full, choose a card to replace", playerID, name)
+	} else {
+		e.State.LastAction = fmt.Sprintf("%s drew power card %s", playerID, name)
+	}
 	return nil
 }
 
-// PlayPower plays a special power card from hand to boost attack, defense, or heal (once per turn).
+// tryAutoDrawPower draws the turn's power card automatically when legal.
+// Uses direct deck→hand logic (not DrawCard/requirePlayable) so turn-start
+// draws cannot fail silently after EndTurn / Attack advance.
+func (e *Engine) tryAutoDrawPower(playerID string) {
+	if e.State == nil || e.State.Phase != string(rules.PhaseInBattle) {
+		return
+	}
+	if e.State.CurrentTurn != playerID {
+		return
+	}
+	player := e.getPlayer(playerID)
+	if player == nil || player.HasDrawn || player.ActivePokemon == nil {
+		return
+	}
+	if len(player.PendingDraw) > 0 || len(player.PowerDeck) == 0 {
+		return
+	}
+	name, pending, err := drawPowerCard(player)
+	if err != nil {
+		return
+	}
+	player.HasDrawn = true
+	if pending {
+		e.State.LastAction = fmt.Sprintf("%s drew %s — power slots full, choose a card to replace", playerID, name)
+	} else {
+		e.State.LastAction = fmt.Sprintf("%s drew power card %s", playerID, name)
+	}
+}
+
+// PlayPower plays a special power card from hand onto the active Pokémon.
+// Players may use any number of available power-slot cards in a turn.
 func (e *Engine) PlayPower(playerID, cardID string) error {
 	player, err := e.requirePlayable(playerID)
 	if err != nil {
 		return err
-	}
-	if player.HasPlayedPower {
-		return errors.New("already played a power card this turn")
 	}
 	if player.ActivePokemon == nil {
 		return errors.New("no active pokemon to apply power to")
@@ -375,8 +411,35 @@ func (e *Engine) PlayPower(playerID, cardID string) error {
 	return nil
 }
 
+// SelectDraw resolves a full-hand power draw: cardID is the hand card to discard
+// and replace with the pending draw. Empty cardID keeps the hand and discards the draw.
 func (e *Engine) SelectDraw(playerID, cardID string) error {
-	return errors.New("wonder pick is not used in Pokémon GO tournament battles (handbook §6)")
+	player, err := e.requireTurn(playerID)
+	if err != nil {
+		return err
+	}
+	if len(player.PendingDraw) == 0 {
+		return errors.New("no pending power card to place")
+	}
+	pending := player.PendingDraw[0]
+
+	if cardID == "" || cardID == "_keep" {
+		player.DiscardPile = append(player.DiscardPile, pending)
+		player.PendingDraw = nil
+		e.State.LastAction = fmt.Sprintf("%s kept hand and discarded drawn %s", playerID, pending.Name)
+		return nil
+	}
+
+	idx := findCard(player.Hand, cardID)
+	if idx < 0 {
+		return errors.New("hand card not found to replace")
+	}
+	replaced := player.Hand[idx]
+	player.Hand[idx] = pending
+	player.DiscardPile = append(player.DiscardPile, replaced)
+	player.PendingDraw = nil
+	e.State.LastAction = fmt.Sprintf("%s replaced %s with %s", playerID, replaced.Name, pending.Name)
+	return nil
 }
 
 // SelectParty locks in the three Pokémon brought to the current game (§3.1 / §6.1).
@@ -440,8 +503,9 @@ func (e *Engine) SelectParty(playerID string, cardIDs []string) error {
 	player.PartyReady = true
 	player.DiscardPile = nil
 	// Fresh power deck each game so both sides keep leverage.
-	player.PowerDeck = buildPowerDeck(playerID)
+	player.PowerDeck = e.buildPowerDeck(playerID)
 	player.Hand = nil
+	player.PendingDraw = nil
 	e.State.LastAction = fmt.Sprintf("%s selected battle party", playerID)
 
 	if e.bothPartiesReady() {
@@ -468,7 +532,7 @@ func (e *Engine) beginBattle() {
 	e.State.CurrentTurn = e.State.Players[0].ID
 	e.State.TurnNumber = 1
 	e.State.LastAction = fmt.Sprintf("game %d begin — %s to move", e.State.GameNumber, e.State.CurrentTurn)
-	// Lead Pokémon starts with 1 energy charge opportunity via attach action.
+	e.tryAutoDrawPower(e.State.CurrentTurn)
 }
 
 func (e *Engine) PlayBench(playerID, cardID string) error {
@@ -525,6 +589,7 @@ func (e *Engine) Promote(playerID, cardID string) error {
 	player.BenchedPokemon = append(player.BenchedPokemon[:idx], player.BenchedPokemon[idx+1:]...)
 	player.ActivePokemon = &card
 	e.State.LastAction = fmt.Sprintf("%s promoted %s", playerID, card.Name)
+	e.tryAutoDrawPower(playerID)
 	return nil
 }
 
@@ -656,13 +721,14 @@ func (e *Engine) finishGame(winnerID, message string) {
 		p.BenchedPokemon = nil
 		p.DiscardPile = nil
 		p.Hand = nil
-		p.PowerDeck = buildPowerDeck(p.ID)
+		p.PowerDeck = e.buildPowerDeck(p.ID)
 		p.PartyReady = false
 		p.ProtectShields = rules.ProtectShieldsPerGame
 		p.HasAttached = false
 		p.HasDrawn = false
 		p.HasSwitched = false
 		p.HasPlayedPower = false
+		p.PendingDraw = nil
 		p.AttackBonus = 0
 		p.DefenseBonus = 0
 	}
@@ -688,6 +754,7 @@ func (e *Engine) advanceTurn(currentPlayerID string) error {
 	opponent.HasAttached = false
 	opponent.HasSwitched = false
 	opponent.HasPlayedPower = false
+	e.tryAutoDrawPower(opponent.ID)
 	return nil
 }
 

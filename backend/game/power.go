@@ -22,40 +22,75 @@ const PowerDeckSize = 12
 // MaxPowerHandSlots — each player may hold at most this many power cards (empty slots to fill).
 const MaxPowerHandSlots = rules.MaxPowerHandSlots
 
-// Power card effect magnitudes (balanced for GO-style HP / damage ranges).
+// Power card effect magnitudes used by the built-in fallback catalog.
 const (
 	PowerAttackBonus  = 20
 	PowerDefenseBonus = 15
 	PowerHealAmount   = 30
 )
 
-type powerTemplate struct {
-	Name        string
-	Effect      string
-	EffectValue int
-	ImageURL    string
-}
-
-var powerTemplates = []powerTemplate{
+// fallbackPowerCatalog is used when the DB / PokeAPI power seed is empty.
+var fallbackPowerCatalog = []models.PowerCard{
 	{
-		Name: "Power Strike", Effect: EffectBoostAttack, EffectValue: PowerAttackBonus,
+		PokeAPIID: 57, Name: "X Attack", Effect: EffectBoostAttack, EffectValue: PowerAttackBonus,
 		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-attack.png",
+		Category: "stat-boosts",
 	},
 	{
-		Name: "Iron Guard", Effect: EffectBoostDefense, EffectValue: PowerDefenseBonus,
+		PokeAPIID: 58, Name: "X Defense", Effect: EffectBoostDefense, EffectValue: PowerDefenseBonus,
 		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-defense.png",
+		Category: "stat-boosts",
 	},
 	{
-		Name: "Potion Heal", Effect: EffectHeal, EffectValue: PowerHealAmount,
+		PokeAPIID: 17, Name: "Potion", Effect: EffectHeal, EffectValue: PowerHealAmount,
 		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/potion.png",
+		Category: "healing",
 	},
 }
 
-// buildPowerDeck creates a shuffled special-power deck for a player (attack / defense / heal).
-func buildPowerDeck(playerID string) []models.Card {
+// SetPowerCatalog updates the special power-card pool used when building decks.
+func (e *Engine) SetPowerCatalog(catalog []models.PowerCard) {
+	e.powerCatalog = catalog
+}
+
+func (e *Engine) powerPool() []models.PowerCard {
+	if len(e.powerCatalog) > 0 {
+		return e.powerCatalog
+	}
+	return fallbackPowerCatalog
+}
+
+// buildPowerDeck creates a shuffled special-power deck for a player from the catalog.
+// Cards are drawn with roughly equal representation of attack / defense / heal effects.
+func (e *Engine) buildPowerDeck(playerID string) []models.Card {
+	pool := e.powerPool()
+	byEffect := map[string][]models.PowerCard{}
+	for _, p := range pool {
+		byEffect[p.Effect] = append(byEffect[p.Effect], p)
+	}
+	effects := []string{EffectBoostAttack, EffectBoostDefense, EffectHeal}
+	// Prefer effect kinds that actually exist in the catalog.
+	available := make([]string, 0, len(effects))
+	for _, eff := range effects {
+		if len(byEffect[eff]) > 0 {
+			available = append(available, eff)
+		}
+	}
+	if len(available) == 0 {
+		available = effects
+		byEffect = map[string][]models.PowerCard{
+			EffectBoostAttack:  {fallbackPowerCatalog[0]},
+			EffectBoostDefense: {fallbackPowerCatalog[1]},
+			EffectHeal:         {fallbackPowerCatalog[2]},
+		}
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	deck := make([]models.Card, 0, PowerDeckSize)
 	for i := 0; i < PowerDeckSize; i++ {
-		tpl := powerTemplates[i%len(powerTemplates)]
+		eff := available[i%len(available)]
+		choices := byEffect[eff]
+		tpl := choices[r.Intn(len(choices))]
 		deck = append(deck, models.Card{
 			ID:          fmt.Sprintf("%s-power-%d", playerID, i),
 			Name:        tpl.Name,
@@ -63,27 +98,29 @@ func buildPowerDeck(playerID string) []models.Card {
 			Effect:      tpl.Effect,
 			EffectValue: tpl.EffectValue,
 			ImageURL:    tpl.ImageURL,
+			PokeAPIID:   tpl.PokeAPIID,
 		})
 	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Shuffle(len(deck), func(i, j int) {
 		deck[i], deck[j] = deck[j], deck[i]
 	})
 	return deck
 }
 
-// drawPowerCard moves the top card from PowerDeck into Hand. Returns the drawn card name.
-func drawPowerCard(player *models.PlayerState) (string, error) {
-	if len(player.Hand) >= MaxPowerHandSlots {
-		return "", fmt.Errorf("power hand is full (%d slots)", MaxPowerHandSlots)
-	}
+// drawPowerCard moves the top card from PowerDeck into Hand, or into PendingDraw
+// when all power slots are full (player must swap or discard).
+func drawPowerCard(player *models.PlayerState) (string, bool, error) {
 	if len(player.PowerDeck) == 0 {
-		return "", fmt.Errorf("power deck is empty")
+		return "", false, fmt.Errorf("power deck is empty")
 	}
 	card := player.PowerDeck[0]
 	player.PowerDeck = player.PowerDeck[1:]
+	if len(player.Hand) >= MaxPowerHandSlots {
+		player.PendingDraw = []models.Card{card}
+		return card.Name, true, nil
+	}
 	player.Hand = append(player.Hand, card)
-	return card.Name, nil
+	return card.Name, false, nil
 }
 
 // applyPowerEffect resolves a played power card onto the active Pokémon / combat bonuses.

@@ -17,12 +17,16 @@ func (e *Engine) RunCPUIfNeeded() {
 	}
 	for i := 0; i < cpuMaxSteps; i++ {
 		if !e.cpuShouldAct() {
-			return
+			break
 		}
 		if err := e.cpuActOnce(); err != nil {
 			e.State.LastAction = "CPU pause: " + err.Error()
-			return
+			break
 		}
+	}
+	// Ensure the player who receives the turn after the CPU still gets their power draw.
+	if e.State.CurrentTurn != "" && e.State.CurrentTurn != e.State.CPUPlayerID {
+		e.tryAutoDrawPower(e.State.CurrentTurn)
 	}
 }
 
@@ -74,6 +78,12 @@ func (e *Engine) cpuActOnce() error {
 		return nil
 	}
 
+	// Resolve a full-hand power draw before other actions.
+	if len(cpu.PendingDraw) > 0 {
+		replaceID := cpuPickReplace(cpu)
+		return e.SelectDraw(cpuID, replaceID)
+	}
+
 	// Charge once if possible.
 	if !cpu.HasAttached && cpu.ActivePokemon != nil {
 		if err := e.AttachEnergy(cpuID, ""); err != nil {
@@ -82,22 +92,27 @@ func (e *Engine) cpuActOnce() error {
 		cpu = e.getPlayer(cpuID)
 	}
 
-	// Draw a power card when there is an empty slot and the deck still has cards.
-	if cpu != nil && !cpu.HasDrawn && len(cpu.PowerDeck) > 0 && len(cpu.Hand) < MaxPowerHandSlots {
+	// Draw is auto-triggered on turn start; only draw here if somehow skipped.
+	if cpu != nil && !cpu.HasDrawn && len(cpu.PowerDeck) > 0 {
 		if err := e.DrawCard(cpuID); err != nil {
 			return err
 		}
 		cpu = e.getPlayer(cpuID)
+		if cpu != nil && len(cpu.PendingDraw) > 0 {
+			return e.SelectDraw(cpuID, cpuPickReplace(cpu))
+		}
 	}
 
-	// Play the best available power card (heal if hurt, else attack, else defense).
-	if cpu != nil && !cpu.HasPlayedPower && len(cpu.Hand) > 0 && cpu.ActivePokemon != nil {
-		if cardID := cpuPickPower(cpu); cardID != "" {
-			if err := e.PlayPower(cpuID, cardID); err != nil {
-				return err
-			}
-			cpu = e.getPlayer(cpuID)
+	// Play beneficial power cards from slots onto the active Pokémon (any number per turn).
+	for cpu != nil && len(cpu.Hand) > 0 && cpu.ActivePokemon != nil {
+		cardID := cpuPickPower(cpu)
+		if cardID == "" {
+			break
 		}
+		if err := e.PlayPower(cpuID, cardID); err != nil {
+			return err
+		}
+		cpu = e.getPlayer(cpuID)
 	}
 
 	// Attack with the strongest affordable move if opponent is active.
@@ -168,4 +183,46 @@ func cpuPickPower(cpu *models.PlayerState) string {
 		return healID
 	}
 	return defenseID
+}
+
+// cpuPickReplace chooses a hand card to discard for the pending draw, or "_keep".
+func cpuPickReplace(cpu *models.PlayerState) string {
+	if len(cpu.PendingDraw) == 0 || len(cpu.Hand) == 0 {
+		return "_keep"
+	}
+	pending := cpu.PendingDraw[0]
+	pendingRank := powerRank(pending.Effect, cpu)
+
+	worstID := ""
+	worstRank := 999
+	for _, c := range cpu.Hand {
+		r := powerRank(c.Effect, cpu)
+		if r < worstRank {
+			worstRank = r
+			worstID = c.ID
+		}
+	}
+	if pendingRank > worstRank {
+		return worstID
+	}
+	return "_keep"
+}
+
+func powerRank(effect string, cpu *models.PlayerState) int {
+	switch effect {
+	case EffectHeal:
+		if cpu.ActivePokemon != nil && cpu.ActivePokemon.HP*2 <= cpu.ActivePokemon.MaxHP {
+			return 3
+		}
+		if cpu.ActivePokemon != nil && cpu.ActivePokemon.HP < cpu.ActivePokemon.MaxHP {
+			return 2
+		}
+		return 0
+	case EffectBoostAttack:
+		return 2
+	case EffectBoostDefense:
+		return 1
+	default:
+		return 0
+	}
 }

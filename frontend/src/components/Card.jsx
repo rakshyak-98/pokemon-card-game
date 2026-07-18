@@ -33,7 +33,15 @@ const TypeIcon = ({ type, className, size = 16 }) => {
     }
 };
 
-export const Card = ({ card, className = '', onClick, isPlayable = false, isActive = false, size = 'md' }) => {
+export const Card = ({
+    card,
+    className = '',
+    onClick,
+    isPlayable = false,
+    isActive = false,
+    size = 'md',
+    compact = false,
+}) => {
     if (!card) return <div className={`card empty-slot size-${size}`}>EMPTY</div>;
 
     const isPower = card.type === 'Power';
@@ -42,7 +50,7 @@ export const Card = ({ card, className = '', onClick, isPlayable = false, isActi
 
     return (
         <div
-            className={`card size-${size} ${card.type?.toLowerCase() || ''} ${isPower ? `power-${card.effect || 'generic'}` : ''} ${isPlayable ? 'playable' : ''} ${isActive ? 'active-card' : ''} ${className}`}
+            className={`card size-${size} ${card.type?.toLowerCase() || ''} ${isPower ? `power-${card.effect || 'generic'}` : ''} ${isPlayable ? 'playable' : ''} ${isActive ? 'active-card' : ''} ${compact ? 'compact' : ''} ${className}`}
             onClick={() => onClick && onClick(card)}
             role={onClick ? 'button' : undefined}
             tabIndex={onClick ? 0 : undefined}
@@ -52,25 +60,28 @@ export const Card = ({ card, className = '', onClick, isPlayable = false, isActi
                     onClick(card);
                 }
             } : undefined}
+            title={compact ? card.name : undefined}
         >
-            <div className="card-header">
-                <span className="card-name">{card.name}</span>
-                {isPower ? (
-                    <div className="card-hp power-badge">
-                        <span className="hp-value">{power.detail}</span>
-                        <TypeIcon type={power.iconType} size={14} />
-                    </div>
-                ) : card.hp != null ? (
-                    <div className="card-hp">
-                        <span className="hp-label">HP</span>
-                        <span className="hp-value">
-                            {card.hp}
-                            {card.maxHp != null ? `/${card.maxHp}` : ''}
-                        </span>
-                        <TypeIcon type={elementType} />
-                    </div>
-                ) : null}
-            </div>
+            {!compact && (
+                <div className="card-header">
+                    <span className="card-name">{card.name}</span>
+                    {isPower ? (
+                        <div className="card-hp power-badge">
+                            <span className="hp-value">{power.detail}</span>
+                            <TypeIcon type={power.iconType} size={14} />
+                        </div>
+                    ) : card.hp != null ? (
+                        <div className="card-hp">
+                            <span className="hp-label">HP</span>
+                            <span className="hp-value">
+                                {card.hp}
+                                {card.maxHp != null ? `/${card.maxHp}` : ''}
+                            </span>
+                            <TypeIcon type={elementType} />
+                        </div>
+                    ) : null}
+                </div>
+            )}
 
             <div className={`card-art-box ${isPower ? 'power-art' : ''}`}>
                 {isPower ? (
@@ -88,39 +99,41 @@ export const Card = ({ card, className = '', onClick, isPlayable = false, isActi
                 )}
             </div>
 
-            <div className="card-body">
-                <div className="card-type-label">
-                    {isPower ? power.label : (card.elementType || card.type)}
-                    {!isPower && card.stats && (
-                        <span className="card-stats-inline">
-                            {' '}ATK {card.stats.attack} / DEF {card.stats.defense}
-                        </span>
+            {!compact && (
+                <div className="card-body">
+                    <div className="card-type-label">
+                        {isPower ? power.label : (card.elementType || card.type)}
+                        {!isPower && card.stats && (
+                            <span className="card-stats-inline">
+                                {' '}ATK {card.stats.attack} / DEF {card.stats.defense}
+                            </span>
+                        )}
+                    </div>
+                    {isPower && (
+                        <div className="power-effect-label">
+                            USE ON ACTIVE
+                        </div>
+                    )}
+                    {card.energyAttached > 0 && (
+                        <div className="energy-attached">⚡ ×{card.energyAttached}</div>
+                    )}
+                    {card.attacks && card.attacks.length > 0 && (
+                        <div className="attacks-list">
+                            {card.attacks.map((attack, idx) => (
+                                <div key={idx} className="attack-row">
+                                    <div className="attack-cost">
+                                        {Array(attack.cost).fill(0).map((_, i) => (
+                                            <TypeIcon key={i} type="Energy" size={12} />
+                                        ))}
+                                    </div>
+                                    <span className="attack-name">{attack.name}</span>
+                                    <span className="attack-damage">{attack.damage}</span>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
-                {isPower && (
-                    <div className="power-effect-label">
-                        USE ON ACTIVE
-                    </div>
-                )}
-                {card.energyAttached > 0 && (
-                    <div className="energy-attached">⚡ ×{card.energyAttached}</div>
-                )}
-                {card.attacks && card.attacks.length > 0 && (
-                    <div className="attacks-list">
-                        {card.attacks.map((attack, idx) => (
-                            <div key={idx} className="attack-row">
-                                <div className="attack-cost">
-                                    {Array(attack.cost).fill(0).map((_, i) => (
-                                        <TypeIcon key={i} type="Energy" size={12} />
-                                    ))}
-                                </div>
-                                <span className="attack-name">{attack.name}</span>
-                                <span className="attack-damage">{attack.damage}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+            )}
         </div>
     );
 };

@@ -113,22 +113,38 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
     case ACTIONS.DRAW_CARD: {
       if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Draw only during battle' };
       if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (me?.pendingDraw?.length > 0) {
+        return { ok: false, error: 'Choose a power card to replace (or keep hand) first' };
+      }
       if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon' };
       if (me.hasDrawn) return { ok: false, error: 'Already drawn this turn' };
-      if ((me.hand?.length || 0) >= MAX_POWER_HAND_SLOTS) {
-        return { ok: false, error: `Power hand is full (max ${MAX_POWER_HAND_SLOTS}) — use or keep for next turn` };
-      }
       if (!(me.powerDeck?.length > 0)) return { ok: false, error: 'Power deck is empty' };
       return { ok: true };
     }
 
-    case ACTIONS.SELECT_DRAW:
+    case ACTIONS.SELECT_DRAW: {
+      if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Resolve power draw only during battle' };
+      if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (!(me?.pendingDraw?.length > 0)) {
+        return { ok: false, error: 'No pending power card to place' };
+      }
+      const replaceId = payload.cardId || '';
+      if (!replaceId || replaceId === '_keep') return { ok: true };
+      if (!(me.hand || []).some((c) => c.id === replaceId)) {
+        return { ok: false, error: 'Hand card not found to replace' };
+      }
+      return { ok: true };
+    }
+
     case ACTIONS.PLAY_BENCH:
       return { ok: false, error: `${action} is not used in Pokémon GO tournament battles (handbook §6)` };
 
     case ACTIONS.ATTACH_ENERGY: {
       if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Charge energy only during battle' };
       if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (me?.pendingDraw?.length > 0) {
+        return { ok: false, error: 'Choose a power card to replace (or keep hand) first' };
+      }
       if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon to charge' };
       if (me.hasAttached) return { ok: false, error: 'Already charged energy this turn' };
       return { ok: true };
@@ -137,6 +153,9 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
     case ACTIONS.ATTACK: {
       if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Attack only during battle (§6)' };
       if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (me?.pendingDraw?.length > 0) {
+        return { ok: false, error: 'Choose a power card to replace (or keep hand) first' };
+      }
       if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon' };
       const opp = gameState.players?.find((p) => p.id !== playerId);
       if (!opp?.activePokemon) return { ok: false, error: 'Opponent has no active Pokémon' };
@@ -146,6 +165,9 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
     case ACTIONS.END_TURN: {
       if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'End turn only during battle' };
       if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (me?.pendingDraw?.length > 0) {
+        return { ok: false, error: 'Choose a power card to replace (or keep hand) first' };
+      }
       return { ok: true };
     }
 
@@ -159,6 +181,9 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
     case ACTIONS.SWITCH: {
       if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Switch only during battle' };
       if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (me?.pendingDraw?.length > 0) {
+        return { ok: false, error: 'Choose a power card to replace (or keep hand) first' };
+      }
       if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon to switch out — promote instead' };
       if (me.hasSwitched) return { ok: false, error: 'Already switched this turn' };
       if (!me?.benchedPokemon?.length) return { ok: false, error: 'No back-line Pokémon to switch in' };
@@ -172,8 +197,10 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
     case ACTIONS.PLAY_POWER: {
       if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Play power only during battle' };
       if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (me?.pendingDraw?.length > 0) {
+        return { ok: false, error: 'Choose a power card to replace (or keep hand) first' };
+      }
       if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon to apply power to' };
-      if (me.hasPlayedPower) return { ok: false, error: 'Already used a power card this turn — keep the rest for next turn' };
       if (!payload.cardId) return { ok: false, error: 'Pick a power card from your hand' };
       const power = (me.hand || []).find((c) => c.id === payload.cardId);
       if (!power) return { ok: false, error: 'Power card not found in hand' };

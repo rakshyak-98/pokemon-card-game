@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { ACTIONS } from '../rules/handbook';
 import { validateAction } from '../rules/validateAction';
@@ -12,6 +12,7 @@ export function useGameState() {
     const [error, setError] = useState(null);
     const [playerId, setPlayerId] = useState('player1');
     const [vsCPU, setVsCPU] = useState(true);
+    const autoDrawKeyRef = useRef('');
 
     const fetchActions = useCallback(async () => {
         try {
@@ -201,6 +202,55 @@ export function useGameState() {
         isPractice &&
         gameState?.phase === 'InBattle' &&
         gameState?.currentTurn === gameState?.cpuPlayerId;
+
+    // Fallback: if the server missed a turn-start power draw, request it once per turn.
+    useEffect(() => {
+        if (loading || !gameState || gameState.phase !== 'InBattle') return;
+        if (!isMyTurn || cpuThinking || needsPromote) return;
+        if (!me?.activePokemon || me.hasDrawn) return;
+        if (me.pendingDraw?.length > 0) return;
+        if (!(me.powerDeck?.length > 0)) return;
+
+        const key = `${gameState.id}:${gameState.turnNumber}:${playerId}`;
+        if (autoDrawKeyRef.current === key) return;
+        autoDrawKeyRef.current = key;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await axios.post(`${API_BASE}/draw`, { playerId });
+                if (!cancelled) {
+                    applyResult(res.data);
+                }
+            } catch (err) {
+                if (cancelled) return;
+                // Allow a retry on the next state tick if the draw never landed.
+                if (err.response?.status !== 400) {
+                    autoDrawKeyRef.current = '';
+                    setError(err.response?.data?.error || 'Failed to draw power card');
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+        // intentionally depend on turn identity + draw flags only
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        loading,
+        gameState?.id,
+        gameState?.phase,
+        gameState?.turnNumber,
+        isMyTurn,
+        cpuThinking,
+        needsPromote,
+        me?.activePokemon,
+        me?.hasDrawn,
+        me?.pendingDraw?.length,
+        me?.powerDeck?.length,
+        playerId,
+    ]);
 
     return {
         gameState,

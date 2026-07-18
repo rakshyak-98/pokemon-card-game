@@ -79,11 +79,10 @@ const SECTIONS = [
         <ol>
           <li>Lead with your first selected Pokémon; the other two form your back line.</li>
           <li>
-            <strong>Draw Power</strong> once per turn into an empty slot (max 4). Tap a card to use it
-            on your Active this turn, or leave it to keep for later turns.
-          </li>
-          <li>
-            <strong>Play</strong> at most one power card per turn (Attack, Defense, or Heal).
+            <strong>Power cards</strong> draw automatically once per turn into an empty slot (max 4).
+            If slots are full, choose a card to swap out—or keep your hand and discard the draw.
+            Tap any held cards to use them on your Active this turn (Attack, Defense, or Heal)—you may play
+            multiple—or leave them for later.
           </li>
           <li>
             <strong>Charge Energy</strong> once per turn on your Active (approximates Fast Attack energy gain).
@@ -107,7 +106,7 @@ const SECTIONS = [
           <li>Start a match → review opponent preview → lock a party of 3.</li>
           <li>Tap an Active Pokémon in the arena to open its card details.</li>
           <li>
-            Drawn power cards fill up to 4 slots on the bottom-right — tap one to use on Active, or keep for next turn.
+            Drawn power cards fill up to 4 slots on the bottom-right automatically each turn — tap any to use on Active (you may play several), or keep for next turn. When slots are full, a popup lets you swap or discard the new draw.
           </li>
           <li>SWAP switches which seat you control on this local client (2-player only).</li>
           <li>Between games, both players select a new party of 3 from the same Battle Team.</li>

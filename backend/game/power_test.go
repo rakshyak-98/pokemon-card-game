@@ -7,7 +7,8 @@ import (
 )
 
 func TestBuildPowerDeck(t *testing.T) {
-	deck := buildPowerDeck("player1")
+	e := NewEngine(nil)
+	deck := e.buildPowerDeck("player1")
 	if len(deck) != PowerDeckSize {
 		t.Fatalf("expected deck size %d, got %d", PowerDeckSize, len(deck))
 	}
@@ -20,6 +21,29 @@ func TestBuildPowerDeck(t *testing.T) {
 	}
 	if counts[EffectBoostAttack] == 0 || counts[EffectBoostDefense] == 0 || counts[EffectHeal] == 0 {
 		t.Fatalf("deck missing effect kinds: %+v", counts)
+	}
+}
+
+func TestBuildPowerDeckUsesCatalog(t *testing.T) {
+	e := NewEngine(nil)
+	e.SetPowerCatalog([]models.PowerCard{
+		{PokeAPIID: 1, Name: "Hyper Potion", Effect: EffectHeal, EffectValue: 50, ImageURL: "https://example/heal.png"},
+		{PokeAPIID: 2, Name: "X Attack 3", Effect: EffectBoostAttack, EffectValue: 30, ImageURL: "https://example/atk.png"},
+		{PokeAPIID: 3, Name: "X Defense 3", Effect: EffectBoostDefense, EffectValue: 25, ImageURL: "https://example/def.png"},
+	})
+	deck := e.buildPowerDeck("p1")
+	if len(deck) != PowerDeckSize {
+		t.Fatalf("expected deck size %d, got %d", PowerDeckSize, len(deck))
+	}
+	names := map[string]bool{}
+	for _, c := range deck {
+		names[c.Name] = true
+		if c.PokeAPIID == 0 {
+			t.Fatalf("expected pokeApiId from catalog on %s", c.Name)
+		}
+	}
+	if !names["Hyper Potion"] || !names["X Attack 3"] || !names["X Defense 3"] {
+		t.Fatalf("deck should sample seeded catalog names, got %+v", names)
 	}
 }
 
@@ -39,27 +63,53 @@ func TestDrawRespectsMaxHandSlots(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < MaxPowerHandSlots; i++ {
-		p1 = e.getPlayer("player1")
+	// beginBattle auto-draws once for the starting player.
+	p1 = e.getPlayer("player1")
+	if !p1.HasDrawn || len(p1.Hand) != 1 {
+		t.Fatalf("expected auto-draw on battle start, hand=%d hasDrawn=%v", len(p1.Hand), p1.HasDrawn)
+	}
+
+	for len(p1.Hand) < MaxPowerHandSlots {
 		p1.HasDrawn = false
 		if err := e.DrawCard("player1"); err != nil {
-			t.Fatalf("draw %d: %v", i+1, err)
+			t.Fatalf("fill draw: %v", err)
 		}
-		// Advance and come back so draw flag resets without needing full attack loop.
-		_ = e.advanceTurn("player1")
-		_ = e.advanceTurn("player2")
+		p1 = e.getPlayer("player1")
 	}
-	p1 = e.getPlayer("player1")
 	if len(p1.Hand) != MaxPowerHandSlots {
 		t.Fatalf("expected %d cards in hand, got %d", MaxPowerHandSlots, len(p1.Hand))
 	}
+
 	p1.HasDrawn = false
-	if err := e.DrawCard("player1"); err == nil {
-		t.Fatal("expected draw to fail when hand is full")
+	beforeDeck := len(p1.PowerDeck)
+	if err := e.DrawCard("player1"); err != nil {
+		t.Fatalf("full-hand draw should go pending: %v", err)
 	}
-	// Keeping cards across turns: hand unchanged if we skip PlayPower.
+	p1 = e.getPlayer("player1")
+	if len(p1.PendingDraw) != 1 {
+		t.Fatalf("expected pending draw when hand full, got %d", len(p1.PendingDraw))
+	}
 	if len(p1.Hand) != MaxPowerHandSlots {
-		t.Fatalf("kept cards should remain for next turn")
+		t.Fatalf("hand should stay full until replace, got %d", len(p1.Hand))
+	}
+	if len(p1.PowerDeck) != beforeDeck-1 {
+		t.Fatalf("deck should lose the pending card")
+	}
+
+	replaceID := p1.Hand[0].ID
+	pendingName := p1.PendingDraw[0].Name
+	if err := e.SelectDraw("player1", replaceID); err != nil {
+		t.Fatal(err)
+	}
+	p1 = e.getPlayer("player1")
+	if len(p1.PendingDraw) != 0 {
+		t.Fatal("pending should clear after replace")
+	}
+	if len(p1.Hand) != MaxPowerHandSlots {
+		t.Fatalf("hand should remain full after replace")
+	}
+	if p1.Hand[0].Name != pendingName {
+		t.Fatalf("expected slot 0 to become %s, got %s", pendingName, p1.Hand[0].Name)
 	}
 }
 
@@ -85,13 +135,8 @@ func TestDrawAndPlayPower(t *testing.T) {
 	}
 
 	p1 = e.getPlayer("player1")
-	before := len(p1.PowerDeck)
-	if err := e.DrawCard("player1"); err != nil {
-		t.Fatal(err)
-	}
-	p1 = e.getPlayer("player1")
-	if len(p1.Hand) != 1 || len(p1.PowerDeck) != before-1 {
-		t.Fatalf("draw should move one card to hand")
+	if len(p1.Hand) != 1 || !p1.HasDrawn {
+		t.Fatalf("battle start should auto-draw one power card")
 	}
 
 	card := p1.Hand[0]
@@ -119,6 +164,45 @@ func TestDrawAndPlayPower(t *testing.T) {
 		if p1.ActivePokemon.HP <= p1.ActivePokemon.MaxHP-10 {
 			t.Fatalf("heal should restore HP")
 		}
+	}
+}
+
+func TestPlayMultiplePowersSameTurn(t *testing.T) {
+	e := NewEngine(fallbackCatalog())
+	if err := e.StartGame("player1", "player2", false); err != nil {
+		t.Fatal(err)
+	}
+	p1 := e.getPlayer("player1")
+	ids1 := []string{p1.BattleTeam[0].ID, p1.BattleTeam[1].ID, p1.BattleTeam[2].ID}
+	p2 := e.getPlayer("player2")
+	ids2 := []string{p2.BattleTeam[0].ID, p2.BattleTeam[1].ID, p2.BattleTeam[2].ID}
+	if err := e.SelectParty("player1", ids1); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.SelectParty("player2", ids2); err != nil {
+		t.Fatal(err)
+	}
+
+	p1 = e.getPlayer("player1")
+	// Seed two boost cards into hand (beyond the auto-draw).
+	p1.Hand = []models.Card{
+		{ID: "atk-1", Name: "Power Strike", Type: models.TypePower, Effect: EffectBoostAttack, EffectValue: PowerAttackBonus},
+		{ID: "def-1", Name: "Iron Guard", Type: models.TypePower, Effect: EffectBoostDefense, EffectValue: PowerDefenseBonus},
+	}
+
+	if err := e.PlayPower("player1", "atk-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.PlayPower("player1", "def-1"); err != nil {
+		t.Fatalf("should allow a second power card same turn: %v", err)
+	}
+	p1 = e.getPlayer("player1")
+	if len(p1.Hand) != 0 {
+		t.Fatalf("both power cards should leave hand, got %d", len(p1.Hand))
+	}
+	if p1.AttackBonus != PowerAttackBonus || p1.DefenseBonus != PowerDefenseBonus {
+		t.Fatalf("expected stacked bonuses atk=%d def=%d, got atk=%d def=%d",
+			PowerAttackBonus, PowerDefenseBonus, p1.AttackBonus, p1.DefenseBonus)
 	}
 }
 

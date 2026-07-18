@@ -20,15 +20,17 @@ Default path: `backend/data/pokemon.db` (override with `DATABASE_PATH`).
 - **games** — live game row + JSON state snapshot
 - **action_logs** — every user action (success and failure)
 - **pokemons** — catalog seeded from [PokeAPI](https://pokeapi.co) (official artwork, types, base stats, card HP/attacks)
+- **power_cards** — special power cards seeded from PokeAPI items (X Attack, potions, pinch berries, etc.)
 
-On first boot the server fetches Gen 1 (ids 1–151) into `pokemons` and builds decks from that catalog. Override with:
+On first boot the server fetches Gen 1 (ids 1–151) into `pokemons` and builds decks from that catalog. It also seeds battle items into `power_cards` for the special-power deck. Override with:
 
 | Env | Default | Meaning |
 |-----|---------|---------|
 | `POKEAPI_SEED_FROM` | `1` | first national dex id |
 | `POKEAPI_SEED_TO` | `151` | last national dex id |
 | `POKEAPI_SEED_WORKERS` | `6` | concurrent fetch workers |
-| `POKEAPI_SEED_FORCE` | — | set `1` to re-fetch and overwrite |
+| `POKEAPI_SEED_FORCE` | — | set `1` to re-fetch Pokémon **and** power cards |
+| `POWER_SEED_FORCE` | — | set `1` to re-fetch only power cards |
 
 ## API
 
@@ -36,6 +38,8 @@ On first boot the server fetches Gen 1 (ids 1–151) into `pokemons` and builds 
 |--------|------|------|
 | GET | `/api/pokemon` | — (full catalog) |
 | GET | `/api/pokemon/{id}` | — (one entry by PokeAPI id) |
+| GET | `/api/power-cards` | — (special power-card catalog) |
+| GET | `/api/power-cards/{id}` | — (one power card by PokeAPI item id) |
 | GET | `/api/game` | — |
 | POST | `/api/game/start` | `{ "vsCPU": true }` optional — practice match vs AI |
 | POST | `/api/game/select-party` | `{ "playerId", "cardIds": [3 ids] }` |
