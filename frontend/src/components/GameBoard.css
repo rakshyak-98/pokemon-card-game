@@ -297,12 +297,29 @@
 }
 
 .attack-button,
-.attach-btn {
+.attach-btn,
+.details-btn {
   width: 100%;
   font-size: 8px;
   padding: 0.5rem 0.6rem;
   white-space: normal;
   line-height: 1.35;
+}
+
+.details-btn {
+  background: var(--panel-light);
+  box-shadow:
+    inset -3px -3px 0 var(--panel-dark),
+    inset 3px 3px 0 #f4f8e8,
+    4px 4px 0 rgba(0, 0, 0, 0.4);
+}
+
+.details-btn:hover:not(:disabled) {
+  background: #f0f6d8;
+  box-shadow:
+    inset -3px -3px 0 var(--panel-dark),
+    inset 3px 3px 0 #f4f8e8,
+    5px 5px 0 rgba(0, 0, 0, 0.4);
 }
 
 .battle-line {
@@ -506,6 +523,20 @@
 .action-log ul::-webkit-scrollbar-thumb {
   background: var(--accent-gold);
   border: 2px solid var(--ink);
+}
+
+.hand-cards.party-strip {
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.hand-cards.party-strip .cp-chip {
+  display: block;
+  text-align: center;
+  font-family: var(--font-screen);
+  font-size: 14px;
+  color: var(--panel-light);
+  margin-top: 0.15rem;
 }
 
 .banner-error,

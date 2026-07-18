@@ -10,6 +10,8 @@ import (
 const (
 	ActionStartGame    = "start_game"
 	ActionDrawCard     = "draw_card"
+	ActionSelectDraw   = "select_draw"
+	ActionSelectParty  = "select_party"
 	ActionPlayBench    = "play_bench"
 	ActionSetActive    = "set_active"
 	ActionAttachEnergy = "attach_energy"
@@ -30,6 +32,8 @@ type Command interface {
 type GameActions interface {
 	StartGame(player1ID, player2ID string) error
 	DrawCard(playerID string) error
+	SelectDraw(playerID, cardID string) error
+	SelectParty(playerID string, cardIDs []string) error
 	PlayBench(playerID, cardID string) error
 	SetActive(playerID, cardID string) error
 	AttachEnergy(playerID, energyCardID string) error
@@ -62,6 +66,36 @@ func (c *DrawCardCommand) Name() string     { return ActionDrawCard }
 func (c *DrawCardCommand) PlayerID() string { return c.PID }
 func (c *DrawCardCommand) Payload() any     { return map[string]string{"playerId": c.PID} }
 func (c *DrawCardCommand) Execute() error   { return c.Receiver.DrawCard(c.PID) }
+
+type SelectDrawCommand struct {
+	Receiver GameActions
+	PID      string
+	CardID   string
+}
+
+func (c *SelectDrawCommand) Name() string     { return ActionSelectDraw }
+func (c *SelectDrawCommand) PlayerID() string { return c.PID }
+func (c *SelectDrawCommand) Payload() any {
+	return map[string]string{"playerId": c.PID, "cardId": c.CardID}
+}
+func (c *SelectDrawCommand) Execute() error {
+	return c.Receiver.SelectDraw(c.PID, c.CardID)
+}
+
+type SelectPartyCommand struct {
+	Receiver GameActions
+	PID      string
+	CardIDs  []string
+}
+
+func (c *SelectPartyCommand) Name() string     { return ActionSelectParty }
+func (c *SelectPartyCommand) PlayerID() string { return c.PID }
+func (c *SelectPartyCommand) Payload() any {
+	return map[string]any{"playerId": c.PID, "cardIds": c.CardIDs}
+}
+func (c *SelectPartyCommand) Execute() error {
+	return c.Receiver.SelectParty(c.PID, c.CardIDs)
+}
 
 type PlayBenchCommand struct {
 	Receiver GameActions

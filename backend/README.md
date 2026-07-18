@@ -37,11 +37,13 @@ On first boot the server fetches Gen 1 (ids 1–151) into `pokemons` and builds 
 | GET | `/api/pokemon` | — (full catalog) |
 | GET | `/api/pokemon/{id}` | — (one entry by PokeAPI id) |
 | GET | `/api/game` | — |
-| POST | `/api/game/start` | — |
-| POST | `/api/game/draw` | `{ "playerId" }` |
-| POST | `/api/game/play-bench` | `{ "playerId", "cardId" }` |
+| POST | `/api/game/start` | — (builds Great League Battle Teams, Team Preview) |
+| POST | `/api/game/select-party` | `{ "playerId", "cardIds": [3 ids] }` |
+| POST | `/api/game/draw` | disabled under GO handbook rules |
+| POST | `/api/game/draw/select` | disabled under GO handbook rules |
+| POST | `/api/game/play-bench` | disabled — party select handles lineup |
 | POST | `/api/game/set-active` | `{ "playerId", "cardId" }` |
-| POST | `/api/game/attach-energy` | `{ "playerId", "cardId" }` |
+| POST | `/api/game/attach-energy` | `{ "playerId" }` — charge energy on Active (once/turn) |
 | POST | `/api/game/attack` | `{ "playerId", "attackIndex" }` |
 | POST | `/api/game/end-turn` | `{ "playerId" }` |
 | POST | `/api/game/promote` | `{ "playerId", "cardId" }` |
@@ -61,11 +63,10 @@ Frontend (Vite proxies `/api` → `:8080`):
 cd frontend && npm run dev
 ```
 
-## Play loop
+## Play loop (Pokémon GO handbook)
 
-1. Start game → each player gets 7-card hand + 6 prizes  
-2. Set Active Pokémon (from hand)  
-3. Optionally Bench Pokémon / Attach Energy (1 per turn)  
-4. Attack (needs enough energy) or End Turn  
-5. On KO → take a prize; opponent Promotes from bench  
-6. Win by 6 prizes or when opponent has no Pokémon left  
+1. Start match → each player gets a legal Great League Battle Team (up to 6)  
+2. Team preview → each selects a party of 3  
+3. Charge energy / attack / promote after KO  
+4. Win the game by KOing the last opposing Pokémon; match is best-of-three (§6.4)  
+

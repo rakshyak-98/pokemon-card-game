@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"rakshyak-98/pokemon-backend/command"
 	"rakshyak-98/pokemon-backend/game"
 	"rakshyak-98/pokemon-backend/models"
+	"rakshyak-98/pokemon-backend/rules"
 	"rakshyak-98/pokemon-backend/store"
 )
 
@@ -45,10 +47,43 @@ func (f *GameFacade) State() *models.GameState {
 	return f.engine.State
 }
 
-// Execute runs a Command, persists state (Memento), and writes the action audit log.
+// Execute runs a Command after handbook rule validation, then persists state and audit log.
 func (f *GameFacade) Execute(cmd command.Command) (*models.GameState, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	payload := map[string]any{}
+	if raw := cmd.Payload(); raw != nil {
+		switch v := raw.(type) {
+		case map[string]any:
+			payload = v
+		case map[string]string:
+			for k, val := range v {
+				payload[k] = val
+			}
+		default:
+			// best-effort: re-marshal
+			b, _ := json.Marshal(raw)
+			_ = json.Unmarshal(b, &payload)
+		}
+	}
+
+	if err := rules.ValidateAction(f.engine.State, cmd.PlayerID(), cmd.Name(), payload); err != nil {
+		gameID := ""
+		if f.engine.State != nil {
+			gameID = f.engine.State.ID
+		}
+		_, _ = f.db.AppendAction(models.ActionLog{
+			GameID:       gameID,
+			PlayerID:     cmd.PlayerID(),
+			ActionType:   cmd.Name(),
+			PayloadJSON:  command.MarshalPayload(cmd),
+			Success:      false,
+			ErrorMessage: err.Error(),
+			CreatedAt:    time.Now().UTC(),
+		})
+		return f.engine.State, err
+	}
 
 	err := cmd.Execute()
 	gameID := ""
@@ -100,6 +135,14 @@ func (f *GameFacade) StartGame(player1ID, player2ID string) error {
 
 func (f *GameFacade) DrawCard(playerID string) error {
 	return f.engine.DrawCard(playerID)
+}
+
+func (f *GameFacade) SelectDraw(playerID, cardID string) error {
+	return f.engine.SelectDraw(playerID, cardID)
+}
+
+func (f *GameFacade) SelectParty(playerID string, cardIDs []string) error {
+	return f.engine.SelectParty(playerID, cardIDs)
 }
 
 func (f *GameFacade) PlayBench(playerID, cardID string) error {

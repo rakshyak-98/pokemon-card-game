@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
+import { ACTIONS } from '../rules/handbook';
+import { validateAction } from '../rules/validateAction';
 
 const API_BASE = '/api/game';
 
@@ -48,7 +50,22 @@ export function useGameState() {
         fetchActions();
     };
 
+    const guard = (action, payload = {}) => {
+        const result = validateAction({
+            gameState,
+            playerId,
+            action,
+            payload,
+        });
+        if (!result.ok) {
+            setError(result.error);
+            return false;
+        }
+        return true;
+    };
+
     const startGame = async () => {
+        if (!guard(ACTIONS.START_GAME)) return;
         try {
             const res = await axios.post(`${API_BASE}/start`);
             applyResult(res.data);
@@ -57,7 +74,18 @@ export function useGameState() {
         }
     };
 
+    const selectParty = async (cardIds) => {
+        if (!guard(ACTIONS.SELECT_PARTY, { cardIds })) return;
+        try {
+            const res = await axios.post(`${API_BASE}/select-party`, { playerId, cardIds });
+            applyResult(res.data);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to select party');
+        }
+    };
+
     const drawCard = async () => {
+        if (!guard(ACTIONS.DRAW_CARD)) return;
         try {
             const res = await axios.post(`${API_BASE}/draw`, { playerId });
             applyResult(res.data);
@@ -66,7 +94,18 @@ export function useGameState() {
         }
     };
 
+    const selectDraw = async (cardId) => {
+        if (!guard(ACTIONS.SELECT_DRAW, { cardId })) return;
+        try {
+            const res = await axios.post(`${API_BASE}/draw/select`, { playerId, cardId });
+            applyResult(res.data);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to select draw card');
+        }
+    };
+
     const playBench = async (cardId) => {
+        if (!guard(ACTIONS.PLAY_BENCH, { cardId })) return;
         try {
             const res = await axios.post(`${API_BASE}/play-bench`, { playerId, cardId });
             applyResult(res.data);
@@ -76,6 +115,7 @@ export function useGameState() {
     };
 
     const setActive = async (cardId) => {
+        if (!guard(ACTIONS.SET_ACTIVE, { cardId })) return;
         try {
             const res = await axios.post(`${API_BASE}/set-active`, { playerId, cardId });
             applyResult(res.data);
@@ -84,16 +124,18 @@ export function useGameState() {
         }
     };
 
-    const attachEnergy = async (cardId) => {
+    const attachEnergy = async (cardId = '') => {
+        if (!guard(ACTIONS.ATTACH_ENERGY, { cardId })) return;
         try {
             const res = await axios.post(`${API_BASE}/attach-energy`, { playerId, cardId });
             applyResult(res.data);
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to attach energy');
+            setError(err.response?.data?.error || 'Failed to charge energy');
         }
     };
 
     const attack = async (attackIndex) => {
+        if (!guard(ACTIONS.ATTACK, { attackIndex })) return;
         try {
             const res = await axios.post(`${API_BASE}/attack`, { playerId, attackIndex });
             applyResult(res.data);
@@ -103,6 +145,7 @@ export function useGameState() {
     };
 
     const endTurn = async () => {
+        if (!guard(ACTIONS.END_TURN)) return;
         try {
             const res = await axios.post(`${API_BASE}/end-turn`, { playerId });
             applyResult(res.data);
@@ -112,6 +155,7 @@ export function useGameState() {
     };
 
     const promote = async (cardId) => {
+        if (!guard(ACTIONS.PROMOTE, { cardId })) return;
         try {
             const res = await axios.post(`${API_BASE}/promote`, { playerId, cardId });
             applyResult(res.data);
@@ -121,9 +165,12 @@ export function useGameState() {
     };
 
     const isMyTurn = gameState?.currentTurn === playerId;
-    const me = gameState?.players?.find(p => p.id === playerId);
-    const opponent = gameState?.players?.find(p => p.id !== playerId);
+    const me = gameState?.players?.find((p) => p.id === playerId);
+    const opponent = gameState?.players?.find((p) => p.id !== playerId);
     const needsPromote = Boolean(me && !me.activePokemon && me.benchedPokemon?.length > 0);
+    const pendingDraw = me?.pendingDraw?.length > 0 ? me.pendingDraw : null;
+    const needsPartySelect =
+        ['TeamPreview', 'PartySelect', 'BetweenGames'].includes(gameState?.phase) && !me?.partyReady;
 
     return {
         gameState,
@@ -136,16 +183,20 @@ export function useGameState() {
         opponent,
         isMyTurn,
         needsPromote,
+        pendingDraw,
+        needsPartySelect,
         actions: {
             fetchState,
             startGame,
+            selectParty,
             drawCard,
+            selectDraw,
             playBench,
             setActive,
             attachEnergy,
             attack,
             endTurn,
-            promote
-        }
+            promote,
+        },
     };
 }

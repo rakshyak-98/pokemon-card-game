@@ -1,0 +1,134 @@
+.wonder-pick-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(13, 26, 13, 0.78);
+}
+
+.wonder-pick-modal {
+  position: relative;
+  width: min(720px, 100%);
+  padding: 2rem 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.wonder-pick-marquee {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-cyan);
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 5px 12px;
+  border: var(--pixel) solid var(--ink);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.wonder-pick-title {
+  font-family: var(--font-pixel);
+  font-size: clamp(10px, 2.2vw, 13px);
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: center;
+}
+
+.wonder-pick-hint {
+  font-family: var(--font-screen);
+  font-size: 18px;
+  color: var(--ink-muted);
+  text-align: center;
+  max-width: 36ch;
+  line-height: 1.25;
+}
+
+.wonder-pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.5rem 0;
+}
+
+.wonder-pick-row.is-shuffling .wonder-slot {
+  animation: wonderShuffle 0.35s steps(3) infinite alternate;
+}
+
+@keyframes wonderShuffle {
+  from { transform: translateY(0) rotate(-2deg); }
+  to { transform: translateY(-8px) rotate(2deg); }
+}
+
+.wonder-slot {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+  transition: transform 0.08s steps(2);
+}
+
+.wonder-slot.selectable {
+  cursor: pointer;
+}
+
+.wonder-slot.selectable:hover {
+  transform: translateY(-8px);
+}
+
+.wonder-slot.picked {
+  transform: translateY(-12px) scale(1.05);
+  filter: drop-shadow(0 0 0 var(--accent-gold));
+}
+
+.wonder-slot:disabled {
+  cursor: default;
+}
+
+.card-back {
+  width: 110px;
+  height: 156px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--pixel) solid var(--ink);
+  box-shadow:
+    inset 3px 3px 0 rgba(0, 0, 0, 0.45),
+    4px 4px 0 rgba(0, 0, 0, 0.35);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(112, 224, 64, 0.12) 0 6px,
+      transparent 6px 12px
+    ),
+    linear-gradient(var(--screen-black), var(--screen-black));
+}
+
+.card-back-mark {
+  font-family: var(--font-pixel);
+  font-size: 28px;
+  color: var(--accent-lime);
+  animation: blink 1s steps(2) infinite;
+}
+
+@media (max-width: 600px) {
+  .card-back {
+    width: 86px;
+    height: 120px;
+  }
+
+  .card-back-mark {
+    font-size: 20px;
+  }
+}

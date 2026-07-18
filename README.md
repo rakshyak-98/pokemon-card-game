@@ -1,17 +1,17 @@
 # Pokémon Card Game
 
-A turn-based Pokémon trading-card style game you can play in the browser. Two players take turns drawing cards, setting Active and Bench Pokémon, attaching energy, and attacking until one side wins by collecting all prize cards or knocking out the opponent’s last Pokémon.
+A turn-based Pokémon GO Championship–style battle you can play in the browser. Rules are adapted from the Play! Pokémon Pokémon GO Tournament Handbook (Great League, Battle Teams, best-of-three).
 
 ## Goal
 
-Recreate the core loop of a Pokémon TCG match as a local full-stack app:
+Recreate the core loop of a Pokémon GO tournament match as a local full-stack app:
 
-- **Start a match** — each player gets a 7-card hand and 6 prize cards
-- **Set up the field** — choose an Active Pokémon; optionally bench others and attach energy (one per turn)
-- **Battle** — attack when you have enough energy, or end your turn
-- **Win** — take a prize on each KO; promote from the bench after a KO; win with 6 prizes or when the opponent has no Pokémon left
+- **Start a match** — each player gets a legal Great League Battle Team (up to 6 Pokémon, ≤1500 CP)
+- **Team preview** — exchange public team lists, then each locks a party of 3
+- **Battle** — charge energy, attack, promote from the back line after a KO
+- **Win** — take games by KOing the opponent’s last Pokémon; match is best-of-three
 
-The backend seeds Gen 1 Pokémon (ids 1–151) from [PokeAPI](https://pokeapi.co) into a local SQLite database and drives game state, persistence, and an action audit log. The React frontend talks to the API through Vite’s proxy.
+The backend seeds Gen 1 Pokémon (ids 1–151) from [PokeAPI](https://pokeapi.co) into a local SQLite database and drives game state, persistence, handbook rule validation, and an action audit log. The React frontend validates actions client-side before API calls and talks through Vite’s proxy.
 
 ## Stack
 
@@ -48,10 +48,12 @@ Open the URL Vite prints (usually [http://localhost:5173](http://localhost:5173)
 
 ### 3. Play
 
-1. Use the UI to **start a game**
-2. Set each player’s **Active Pokémon** from their hand
-3. Optionally **bench** Pokémon and **attach energy**
-4. **Attack** or **end turn**, then continue until someone wins
+1. Use the UI to **start a match**
+2. Review the opponent **team preview**, then **lock a party of 3**
+3. **Charge energy**, **attack**, or **end turn**; promote after a KO
+4. Win games to take the **best-of-three** match
+
+Handbook PDF: `play-pokemon-pokemon-go-tournament-handbook-en.pdf`
 
 ## More detail
 

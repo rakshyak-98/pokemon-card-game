@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"rakshyak-98/pokemon-backend/models"
+	"rakshyak-98/pokemon-backend/rules"
 )
 
 // Engine owns mutable game state and turn rules (State-machine style transitions).
@@ -38,7 +39,8 @@ func (e *Engine) StateSnapshot() *models.GameState {
 	return e.State
 }
 
-// StartGame initializes a new game with two players, decks, prizes, and opening hands.
+// StartGame initializes a Pokémon GO–style match: each player gets a legal Great League
+// Battle Team (6 unique Pokémon), then Team Preview / party select begins (§3.1, §6.1).
 func (e *Engine) StartGame(player1ID, player2ID string) error {
 	if player1ID == "" || player2ID == "" {
 		return errors.New("both player ids are required")
@@ -47,52 +49,96 @@ func (e *Engine) StartGame(player1ID, player2ID string) error {
 		return errors.New("player ids must be different")
 	}
 
+	p1, err := e.createBattlePlayer(player1ID)
+	if err != nil {
+		return err
+	}
+	p2, err := e.createBattlePlayer(player2ID)
+	if err != nil {
+		return err
+	}
+
 	e.State = &models.GameState{
 		ID:          uuid.NewString(),
-		Status:      models.StatusInProgress,
-		Players:     []models.PlayerState{e.createPlayer(player1ID), e.createPlayer(player2ID)},
-		CurrentTurn: player1ID,
-		TurnNumber:  1,
-		LastAction:  "game_started",
+		Status:      models.StatusSetup,
+		Phase:       string(rules.PhaseTeamPreview),
+		Players:     []models.PlayerState{p1, p2},
+		CurrentTurn: "",
+		TurnNumber:  0,
+		GameNumber:  1,
+		WinsNeeded:  rules.DefaultMatchFormatWins,
+		LastAction:  "match_started — exchange team preview lists (§6.1)",
 		UpdatedAt:   time.Now().UTC(),
 	}
-
-	for i := range e.State.Players {
-		p := &e.State.Players[i]
-		for j := 0; j < 6; j++ {
-			if len(p.Deck) == 0 {
-				return errors.New("deck too small for prizes")
-			}
-			card := p.Deck[0]
-			p.Deck = p.Deck[1:]
-			p.PrizeCards = append(p.PrizeCards, card)
-		}
-		for j := 0; j < 7; j++ {
-			if err := e.drawCard(p); err != nil {
-				return err
-			}
-		}
-		p.HasDrawn = false
-		p.HasAttached = false
-	}
-
 	return nil
 }
 
-func (e *Engine) createPlayer(id string) models.PlayerState {
-	deck := e.buildStarterDeck(id)
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	r.Shuffle(len(deck), func(i, j int) {
-		deck[i], deck[j] = deck[j], deck[i]
-	})
+func (e *Engine) createBattlePlayer(id string) (models.PlayerState, error) {
+	team, err := e.buildBattleTeam(id)
+	if err != nil {
+		return models.PlayerState{}, err
+	}
+	if err := rules.ValidateBattleTeam(rules.CardsToTeamMembers(team)); err != nil {
+		return models.PlayerState{}, err
+	}
 	return models.PlayerState{
 		ID:             id,
-		Deck:           deck,
-		Hand:           []models.Card{},
+		BattleTeam:     team,
 		BenchedPokemon: []models.Card{},
-		PrizeCards:     []models.Card{},
 		DiscardPile:    []models.Card{},
+		ProtectShields: rules.ProtectShieldsPerGame,
+		GamesWon:       0,
+		PartyReady:     false,
+	}, nil
+}
+
+func (e *Engine) buildBattleTeam(id string) ([]models.Card, error) {
+	pool := e.catalogPool()
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	order := r.Perm(len(pool))
+
+	team := make([]models.Card, 0, rules.MaxBattleTeamSize)
+	seen := map[int]struct{}{}
+
+	for _, oi := range order {
+		if len(team) >= rules.MaxBattleTeamSize {
+			break
+		}
+		p := pool[oi]
+		if _, banned := rules.HardBannedDexIDs[p.PokeAPIID]; banned {
+			continue
+		}
+		if _, banned := rules.HardBannedSpecies[strings.ToLower(p.Name)]; banned {
+			continue
+		}
+		if _, dup := seen[p.PokeAPIID]; dup {
+			continue
+		}
+		if len(p.Attacks) == 0 {
+			continue
+		}
+		seen[p.PokeAPIID] = struct{}{}
+		team = append(team, cardFromPokemon(id, len(team), p))
 	}
+
+	if len(team) < rules.MinBattleTeamSize {
+		return nil, errors.New("catalog too small to build a legal Battle Team (§3.1)")
+	}
+	return team, nil
+}
+
+func (e *Engine) createPlayer(id string) models.PlayerState {
+	// Legacy helper retained for older tests; prefer createBattlePlayer.
+	p, err := e.createBattlePlayer(id)
+	if err != nil {
+		deck := e.buildStarterDeck(id)
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		r.Shuffle(len(deck), func(i, j int) {
+			deck[i], deck[j] = deck[j], deck[i]
+		})
+		return models.PlayerState{ID: id, Deck: deck, Hand: []models.Card{}, BenchedPokemon: []models.Card{}, PrizeCards: []models.Card{}, DiscardPile: []models.Card{}}
+	}
+	return p
 }
 
 func fallbackCatalog() []models.Pokemon {
@@ -134,6 +180,7 @@ func (e *Engine) catalogPool() []models.Pokemon {
 func cardFromPokemon(idPrefix string, index int, p models.Pokemon) models.Card {
 	stats := p.Stats
 	attacks := append([]models.Attack(nil), p.Attacks...)
+	cp := rules.ClampCP(rules.EstimateCombatPower(p.Stats))
 	return models.Card{
 		ID:          fmt.Sprintf("%s-poke-%d", idPrefix, index),
 		Name:        p.Name,
@@ -145,6 +192,7 @@ func cardFromPokemon(idPrefix string, index int, p models.Pokemon) models.Card {
 		ElementType: p.PrimaryType,
 		PokeAPIID:   p.PokeAPIID,
 		Stats:       &stats,
+		CombatPower: cp,
 	}
 }
 
@@ -233,10 +281,10 @@ func (e *Engine) getOpponent(playerID string) *models.PlayerState {
 }
 
 func (e *Engine) requireTurn(playerID string) (*models.PlayerState, error) {
-	if e.State.Status == models.StatusGameOver {
+	if e.State.Status == models.StatusGameOver || e.State.Phase == string(rules.PhaseMatchOver) {
 		return nil, errors.New("game is over")
 	}
-	if e.State.Status != models.StatusInProgress {
+	if e.State.Status != models.StatusInProgress && e.State.Phase != string(rules.PhaseInBattle) {
 		return nil, errors.New("game not in progress")
 	}
 	player := e.getPlayer(playerID)
@@ -254,48 +302,111 @@ func (e *Engine) requirePlayable(playerID string) (*models.PlayerState, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(player.PendingDraw) > 0 {
+		return nil, errors.New("must finish wonder pick first")
+	}
 	if player.ActivePokemon == nil && len(player.BenchedPokemon) > 0 {
 		return nil, errors.New("must promote a benched pokemon first")
 	}
 	return player, nil
 }
 
+// DrawCard is disabled under Pokémon GO tournament rules (§6).
 func (e *Engine) DrawCard(playerID string) error {
-	player, err := e.requirePlayable(playerID)
-	if err != nil {
+	return errors.New("draw is not used in Pokémon GO tournament battles (handbook §6)")
+}
+
+func (e *Engine) SelectDraw(playerID, cardID string) error {
+	return errors.New("wonder pick is not used in Pokémon GO tournament battles (handbook §6)")
+}
+
+// SelectParty locks in the three Pokémon brought to the current game (§3.1 / §6.1).
+func (e *Engine) SelectParty(playerID string, cardIDs []string) error {
+	phase := rules.Phase(e.State.Phase)
+	if phase != rules.PhaseTeamPreview && phase != rules.PhasePartySelect && phase != rules.PhaseBetweenGames {
+		return errors.New("can only select party during preview or between games")
+	}
+	player := e.getPlayer(playerID)
+	if player == nil {
+		return errors.New("player not found")
+	}
+	if player.PartyReady {
+		return errors.New("party already selected for this game")
+	}
+	if len(cardIDs) != rules.BattlePartySize {
+		return fmt.Errorf("must select exactly %d Pokémon (§3.1)", rules.BattlePartySize)
+	}
+
+	chosen := make([]models.Card, 0, rules.BattlePartySize)
+	seen := map[string]struct{}{}
+	for _, cid := range cardIDs {
+		if _, dup := seen[cid]; dup {
+			return errors.New("duplicate party selection")
+		}
+		seen[cid] = struct{}{}
+		idx := findCard(player.BattleTeam, cid)
+		if idx < 0 {
+			return errors.New("card not on Battle Team")
+		}
+		c := player.BattleTeam[idx]
+		// Fresh copy for this game (full HP / no energy).
+		fresh := c
+		fresh.HP = c.MaxHP
+		if fresh.HP <= 0 {
+			fresh.HP = c.HP
+			fresh.MaxHP = c.HP
+		}
+		fresh.EnergyAttached = 0
+		chosen = append(chosen, fresh)
+	}
+
+	dexIDs := make([]int, 0, len(chosen))
+	for _, c := range chosen {
+		dexIDs = append(dexIDs, c.PokeAPIID)
+	}
+	if err := rules.ValidateBattleParty(rules.CardsToTeamMembers(player.BattleTeam), dexIDs); err != nil {
 		return err
 	}
-	if player.HasDrawn {
-		return errors.New("already drew this turn")
+
+	active := chosen[0]
+	player.ActivePokemon = &active
+	player.BenchedPokemon = append([]models.Card(nil), chosen[1:]...)
+	player.ProtectShields = rules.ProtectShieldsPerGame
+	player.HasAttached = false
+	player.HasDrawn = true // no draw step in GO mode
+	player.PartyReady = true
+	player.DiscardPile = nil
+	e.State.LastAction = fmt.Sprintf("%s selected battle party", playerID)
+
+	if e.bothPartiesReady() {
+		e.beginBattle()
+	} else {
+		e.State.Phase = string(rules.PhasePartySelect)
+		e.State.Status = models.StatusSetup
 	}
-	if err := e.drawCard(player); err != nil {
-		return err
-	}
-	player.HasDrawn = true
-	e.State.LastAction = fmt.Sprintf("%s drew a card", playerID)
 	return nil
 }
 
+func (e *Engine) bothPartiesReady() bool {
+	for i := range e.State.Players {
+		if !e.State.Players[i].PartyReady {
+			return false
+		}
+	}
+	return len(e.State.Players) >= 2
+}
+
+func (e *Engine) beginBattle() {
+	e.State.Status = models.StatusInProgress
+	e.State.Phase = string(rules.PhaseInBattle)
+	e.State.CurrentTurn = e.State.Players[0].ID
+	e.State.TurnNumber = 1
+	e.State.LastAction = fmt.Sprintf("game %d begin — %s to move", e.State.GameNumber, e.State.CurrentTurn)
+	// Lead Pokémon starts with 1 energy charge opportunity via attach action.
+}
+
 func (e *Engine) PlayBench(playerID, cardID string) error {
-	player, err := e.requirePlayable(playerID)
-	if err != nil {
-		return err
-	}
-	idx := findCard(player.Hand, cardID)
-	if idx < 0 {
-		return errors.New("card not found in hand")
-	}
-	card := player.Hand[idx]
-	if card.Type != models.TypePokemon {
-		return errors.New("can only bench pokemon")
-	}
-	if len(player.BenchedPokemon) >= 5 {
-		return errors.New("bench is full")
-	}
-	player.Hand = append(player.Hand[:idx], player.Hand[idx+1:]...)
-	player.BenchedPokemon = append(player.BenchedPokemon, card)
-	e.State.LastAction = fmt.Sprintf("%s benched %s", playerID, card.Name)
-	return nil
+	return errors.New("benching from hand is not used — select your battle party of 3 (§3.1)")
 }
 
 func (e *Engine) SetActive(playerID, cardID string) error {
@@ -357,23 +468,17 @@ func (e *Engine) AttachEnergy(playerID, energyCardID string) error {
 		return err
 	}
 	if player.HasAttached {
-		return errors.New("already attached energy this turn")
+		return errors.New("already charged energy this turn")
 	}
 	if player.ActivePokemon == nil {
-		return errors.New("no active pokemon to attach energy to")
+		return errors.New("no active pokemon to charge")
 	}
-	idx := findCard(player.Hand, energyCardID)
-	if idx < 0 {
-		return errors.New("energy card not found in hand")
-	}
-	card := player.Hand[idx]
-	if card.Type != models.TypeEnergy {
-		return errors.New("card is not an energy")
-	}
-	player.Hand = append(player.Hand[:idx], player.Hand[idx+1:]...)
+	// GO-style: one energy charge per turn on the active (approximates Fast Attack energy).
+	// Optional energyCardID ignored — energy is not drawn from a deck in this format.
+	_ = energyCardID
 	player.ActivePokemon.EnergyAttached++
 	player.HasAttached = true
-	e.State.LastAction = fmt.Sprintf("%s attached %s to %s", playerID, card.Name, player.ActivePokemon.Name)
+	e.State.LastAction = fmt.Sprintf("%s charged energy on %s", playerID, player.ActivePokemon.Name)
 	return nil
 }
 
@@ -417,28 +522,47 @@ func (e *Engine) resolveKnockout(attacker, defender *models.PlayerState) {
 	defender.DiscardPile = append(defender.DiscardPile, knocked)
 	defender.ActivePokemon = nil
 
-	if len(attacker.PrizeCards) > 0 {
-		prize := attacker.PrizeCards[0]
-		attacker.PrizeCards = attacker.PrizeCards[1:]
-		attacker.Hand = append(attacker.Hand, prize)
-		attacker.PrizesTaken++
-	}
-
-	if attacker.PrizesTaken >= 6 {
-		e.State.Status = models.StatusGameOver
-		e.State.Winner = attacker.ID
-		e.State.LastAction = fmt.Sprintf("%s wins by taking all prizes", attacker.ID)
-		return
-	}
-
+	// Game ends when a competitor knocks out their opponent's final Pokémon (§6.3).
 	if len(defender.BenchedPokemon) == 0 {
-		e.State.Status = models.StatusGameOver
-		e.State.Winner = attacker.ID
-		e.State.LastAction = fmt.Sprintf("%s wins — opponent has no pokemon left", attacker.ID)
+		e.finishGame(attacker.ID, fmt.Sprintf("%s wins game %d — opponent has no Pokémon left (§6.3)", attacker.ID, e.State.GameNumber))
 		return
 	}
 
 	e.State.LastAction += fmt.Sprintf("; %s must promote", defender.ID)
+}
+
+func (e *Engine) finishGame(winnerID, message string) {
+	winner := e.getPlayer(winnerID)
+	if winner != nil {
+		winner.GamesWon++
+	}
+	e.State.LastAction = message
+
+	if matchWinner := rules.MatchWinnerID(e.State); matchWinner != "" {
+		e.State.Status = models.StatusGameOver
+		e.State.Phase = string(rules.PhaseMatchOver)
+		e.State.Winner = matchWinner
+		e.State.LastAction = fmt.Sprintf("%s wins the match (§6.4 best-of-%d)", matchWinner, e.State.WinsNeeded*2-1)
+		return
+	}
+
+	// Prepare next game — team preview / party select (§6.1 between games).
+	e.State.GameNumber++
+	e.State.Status = models.StatusSetup
+	e.State.Phase = string(rules.PhaseBetweenGames)
+	e.State.CurrentTurn = ""
+	e.State.TurnNumber = 0
+	for i := range e.State.Players {
+		p := &e.State.Players[i]
+		p.ActivePokemon = nil
+		p.BenchedPokemon = nil
+		p.DiscardPile = nil
+		p.PartyReady = false
+		p.ProtectShields = rules.ProtectShieldsPerGame
+		p.HasAttached = false
+		p.HasDrawn = false
+	}
+	e.State.LastAction += fmt.Sprintf("; select parties for game %d", e.State.GameNumber)
 }
 
 func (e *Engine) EndTurn(playerID string) error {

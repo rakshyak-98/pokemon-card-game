@@ -44,6 +44,8 @@ func (h *GameHandler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/game", withCORS(h.GetGameState))
 	mux.HandleFunc("/api/game/start", withCORS(h.StartGame))
 	mux.HandleFunc("/api/game/draw", withCORS(h.DrawCard))
+	mux.HandleFunc("/api/game/draw/select", withCORS(h.SelectDraw))
+	mux.HandleFunc("/api/game/select-party", withCORS(h.SelectParty))
 	mux.HandleFunc("/api/game/play-bench", withCORS(h.PlayBench))
 	mux.HandleFunc("/api/game/set-active", withCORS(h.SetActive))
 	mux.HandleFunc("/api/game/attach-energy", withCORS(h.AttachEnergy))
@@ -62,9 +64,10 @@ func (h *GameHandler) GetGameState(w http.ResponseWriter, r *http.Request) {
 }
 
 type ActionRequest struct {
-	PlayerID    string `json:"playerId"`
-	CardID      string `json:"cardId,omitempty"`
-	AttackIndex int    `json:"attackIndex"`
+	PlayerID    string   `json:"playerId"`
+	CardID      string   `json:"cardId,omitempty"`
+	CardIDs     []string `json:"cardIds,omitempty"`
+	AttackIndex int      `json:"attackIndex"`
 }
 
 func (h *GameHandler) run(w http.ResponseWriter, cmd command.Command) {
@@ -99,6 +102,32 @@ func (h *GameHandler) DrawCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.run(w, &command.DrawCardCommand{Receiver: h.Facade, PID: req.PlayerID})
+}
+
+func (h *GameHandler) SelectDraw(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req ActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	h.run(w, &command.SelectDrawCommand{Receiver: h.Facade, PID: req.PlayerID, CardID: req.CardID})
+}
+
+func (h *GameHandler) SelectParty(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req ActionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	h.run(w, &command.SelectPartyCommand{Receiver: h.Facade, PID: req.PlayerID, CardIDs: req.CardIDs})
 }
 
 func (h *GameHandler) PlayBench(w http.ResponseWriter, r *http.Request) {

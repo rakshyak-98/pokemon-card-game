@@ -51,19 +51,26 @@ type Card struct {
 	ElementType    string        `json:"elementType,omitempty"`
 	PokeAPIID      int           `json:"pokeApiId,omitempty"`
 	Stats          *PokemonStats `json:"stats,omitempty"`
+	CombatPower    int           `json:"combatPower,omitempty"`
+	BestBuddy      bool          `json:"bestBuddy,omitempty"`
 }
 
 type PlayerState struct {
 	ID             string `json:"id"`
-	Deck           []Card `json:"deck"`
-	Hand           []Card `json:"hand"`
+	Deck           []Card `json:"deck,omitempty"`
+	Hand           []Card `json:"hand,omitempty"`
+	BattleTeam     []Card `json:"battleTeam,omitempty"`
 	ActivePokemon  *Card  `json:"activePokemon"`
 	BenchedPokemon []Card `json:"benchedPokemon"`
-	PrizeCards     []Card `json:"prizeCards"`
-	DiscardPile    []Card `json:"discardPile"`
+	PrizeCards     []Card `json:"prizeCards,omitempty"`
+	DiscardPile    []Card `json:"discardPile,omitempty"`
+	PendingDraw    []Card `json:"pendingDraw,omitempty"`
 	HasDrawn       bool   `json:"hasDrawn"`
 	HasAttached    bool   `json:"hasAttached"`
 	PrizesTaken    int    `json:"prizesTaken"`
+	ProtectShields int    `json:"protectShields"`
+	GamesWon       int    `json:"gamesWon"`
+	PartyReady     bool   `json:"partyReady"`
 }
 
 type GameStatus string
@@ -78,10 +85,13 @@ const (
 type GameState struct {
 	ID          string        `json:"id"`
 	Status      GameStatus    `json:"status"`
+	Phase       string        `json:"phase,omitempty"`
 	Players     []PlayerState `json:"players"`
 	CurrentTurn string        `json:"currentTurn"`
 	Winner      string        `json:"winner,omitempty"`
 	TurnNumber  int           `json:"turnNumber"`
+	GameNumber  int           `json:"gameNumber,omitempty"`
+	WinsNeeded  int           `json:"winsNeeded,omitempty"`
 	LastAction  string        `json:"lastAction,omitempty"`
 	UpdatedAt   time.Time     `json:"updatedAt,omitempty"`
 }

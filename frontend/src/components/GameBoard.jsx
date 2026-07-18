@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { Card } from './Card';
+import { CardDetail } from './CardDetail';
+import { PartySelect } from './PartySelect';
 import './GameBoard.css';
 
 export const GameBoard = ({ onShowRules }) => {
     const {
         gameState, actionLog, loading, error, isMyTurn, me, opponent,
-        actions, setPlayerId, playerId, needsPromote
+        actions, setPlayerId, playerId, needsPromote, needsPartySelect
     } = useGameState();
-    const [selectedHandCard, setSelectedHandCard] = useState(null);
     const [selectedBenchedCard, setSelectedBenchedCard] = useState(null);
+    const [detailView, setDetailView] = useState(null);
+    const [confirmingParty, setConfirmingParty] = useState(false);
+
+    const openDetails = (card, ownerLabel) => {
+        if (!card) return;
+        setDetailView({ card, ownerLabel });
+    };
 
     if (loading) {
         return (
@@ -23,13 +31,13 @@ export const GameBoard = ({ onShowRules }) => {
         );
     }
 
-    if (!gameState || gameState.status === 'Waiting') {
+    if (!gameState || gameState.status === 'Waiting' || !gameState.phase || gameState.phase === 'Waiting') {
         return (
             <div className="waiting-screen">
                 <div className="arcade-cabinet pixel-panel">
-                    <div className="arcade-marquee">1 PLAYER · COIN OP</div>
-                    <h1 className="game-title">POKÉMON<br />CARD BATTLE</h1>
-                    <p className="game-subtitle">8-BIT DUEL MODE</p>
+                    <div className="arcade-marquee">GO TOURNAMENT · GREAT LEAGUE</div>
+                    <h1 className="game-title">POKÉMON GO<br />BATTLE</h1>
+                    <p className="game-subtitle">HANDBOOK MATCH MODE</p>
                     <div className="player-select">
                         <label>PLAYER SELECT</label>
                         <select value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
@@ -52,11 +60,11 @@ export const GameBoard = ({ onShowRules }) => {
         );
     }
 
-    if (gameState.status === 'GameOver') {
+    if (gameState.status === 'GameOver' || gameState.phase === 'MatchOver') {
         return (
             <div className="waiting-screen">
                 <div className="arcade-cabinet pixel-panel animate-slam-in">
-                    <div className="arcade-marquee">ROUND OVER</div>
+                    <div className="arcade-marquee">MATCH OVER · §6.4</div>
                     <h1 className="game-title">GAME OVER</h1>
                     <p className="winner-banner">{gameState.winner} WINS!</p>
                     <p className="last-action">{gameState.lastAction}</p>
@@ -74,61 +82,48 @@ export const GameBoard = ({ onShowRules }) => {
         );
     }
 
-    const handleHandCardClick = (card) => {
-        if (!isMyTurn) return;
-        if (selectedHandCard?.id === card.id) {
-            setSelectedHandCard(null);
-        } else {
-            setSelectedHandCard(card);
-            setSelectedBenchedCard(null);
+    if (needsPartySelect || ['TeamPreview', 'PartySelect', 'BetweenGames'].includes(gameState.phase)) {
+        if (!me?.partyReady || !opponent?.partyReady) {
+            return (
+                <PartySelect
+                    me={me}
+                    opponent={opponent}
+                    gameNumber={gameState.gameNumber}
+                    winsNeeded={gameState.winsNeeded}
+                    confirming={confirmingParty}
+                    onConfirm={async (cardIds) => {
+                        setConfirmingParty(true);
+                        try {
+                            await actions.selectParty(cardIds);
+                        } finally {
+                            setConfirmingParty(false);
+                        }
+                    }}
+                />
+            );
         }
-    };
+    }
 
     const handleBenchClick = (card) => {
         if (!isMyTurn && !needsPromote) return;
-
         if (needsPromote && card) {
             actions.promote(card.id);
             setSelectedBenchedCard(null);
             return;
         }
-
-        if (!isMyTurn) return;
-
-        if (card) {
-            setSelectedBenchedCard(selectedBenchedCard?.id === card.id ? null : card);
-            setSelectedHandCard(null);
-        } else if (selectedHandCard && selectedHandCard.type === 'Pokemon') {
-            actions.playBench(selectedHandCard.id);
-            setSelectedHandCard(null);
-        }
-    };
-
-    const handleActiveClick = () => {
-        if (!isMyTurn) return;
-        if (!me?.activePokemon) {
-            if (selectedBenchedCard) {
-                actions.setActive(selectedBenchedCard.id);
-                setSelectedBenchedCard(null);
-            } else if (selectedHandCard && selectedHandCard.type === 'Pokemon') {
-                actions.setActive(selectedHandCard.id);
-                setSelectedHandCard(null);
-            }
-        } else if (selectedHandCard && selectedHandCard.type === 'Energy') {
-            actions.attachEnergy(selectedHandCard.id);
-            setSelectedHandCard(null);
-        }
+        if (!isMyTurn || !card) return;
+        setSelectedBenchedCard(selectedBenchedCard?.id === card.id ? null : card);
     };
 
     const renderBench = (player, isMe) => {
-        const benchSlots = Array(5).fill(null);
+        const benchSlots = Array(2).fill(null);
         player?.benchedPokemon?.forEach((card, i) => {
-            benchSlots[i] = card;
+            if (i < 2) benchSlots[i] = card;
         });
 
         return (
             <div className={`bench-area ${isMe ? 'my-bench' : 'opponent-bench'}`}>
-                <span className="zone-label">{isMe ? 'YOUR BENCH' : 'OPP BENCH'}</span>
+                <span className="zone-label">{isMe ? 'YOUR BACK LINE' : 'OPP BACK LINE'}</span>
                 <div className="bench-slots">
                     {benchSlots.map((card, idx) => (
                         <div
@@ -138,18 +133,12 @@ export const GameBoard = ({ onShowRules }) => {
                         >
                             {card ? (
                                 <Card
-                                    card={card}
+                                    card={isMe ? card : { ...card, energyAttached: undefined, hp: undefined, maxHp: undefined, stats: undefined }}
                                     size="sm"
-                                    isPlayable={isMe && ((isMyTurn && !me?.activePokemon) || needsPromote)}
+                                    isPlayable={isMe && needsPromote}
                                 />
                             ) : (
-                                <div
-                                    className={`card empty-slot size-sm ${
-                                        isMe && isMyTurn && selectedHandCard?.type === 'Pokemon' ? 'playable' : ''
-                                    }`}
-                                >
-                                    BENCH
-                                </div>
+                                <div className="card empty-slot size-sm">BACK</div>
                             )}
                         </div>
                     ))}
@@ -158,32 +147,40 @@ export const GameBoard = ({ onShowRules }) => {
         );
     };
 
+    const oppActiveDisplay = opponent?.activePokemon
+        ? {
+            ...opponent.activePokemon,
+            // Private info (§6.5.3): hide energy from opponent view
+            energyAttached: undefined,
+        }
+        : null;
+
     return (
         <div className="game-board">
             <header className="hud pixel-panel">
                 <div className="player-info opponent-info">
                     <span className="player-name">VS {opponent?.id}</span>
                     <div className="stat-row">
-                        <span className="stat-chip">DECK {opponent?.deck?.length}</span>
-                        <span className="stat-chip">HAND {opponent?.hand?.length}</span>
-                        <span className="stat-chip">PRIZE {opponent?.prizeCards?.length}</span>
+                        <span className="stat-chip">WINS {opponent?.gamesWon || 0}</span>
+                        <span className="stat-chip">LEFT {(opponent?.activePokemon ? 1 : 0) + (opponent?.benchedPokemon?.length || 0)}</span>
+                        <span className="stat-chip">SHIELD {opponent?.protectShields ?? 0}</span>
                     </div>
                 </div>
                 <div className="turn-indicator">
                     <h2 className={isMyTurn ? 'glow' : ''}>
-                        {needsPromote ? 'PROMOTE!' : isMyTurn ? 'YOUR TURN' : 'CPU WAIT'}
+                        {needsPromote ? 'PROMOTE!' : isMyTurn ? 'YOUR TURN' : 'WAIT'}
                     </h2>
                     <p className="turn-meta">
-                        TURN {gameState.turnNumber}
+                        G{gameState.gameNumber} · T{gameState.turnNumber}
                         {gameState.lastAction ? ` · ${gameState.lastAction}` : ''}
                     </p>
                 </div>
                 <div className="player-info my-info">
                     <span className="player-name">YOU ({me?.id})</span>
                     <div className="stat-row">
-                        <span className="stat-chip">DECK {me?.deck?.length}</span>
-                        <span className="stat-chip">PRIZE {me?.prizeCards?.length}</span>
-                        <span className="stat-chip">DISC {me?.discardPile?.length}</span>
+                        <span className="stat-chip">WINS {me?.gamesWon || 0}</span>
+                        <span className="stat-chip">SHIELD {me?.protectShields ?? 0}</span>
+                        <span className="stat-chip">CP TEAM</span>
                     </div>
                 </div>
             </header>
@@ -197,8 +194,8 @@ export const GameBoard = ({ onShowRules }) => {
                         <div className="active-zone">
                             <span className="zone-label">OPP ACTIVE</span>
                             <div className="active-area">
-                                {opponent?.activePokemon ? (
-                                    <Card card={opponent.activePokemon} size="lg" isActive={true} />
+                                {oppActiveDisplay ? (
+                                    <Card card={oppActiveDisplay} size="lg" isActive={true} />
                                 ) : (
                                     <div className="card empty-slot size-lg">ACTIVE</div>
                                 )}
@@ -214,47 +211,50 @@ export const GameBoard = ({ onShowRules }) => {
                         <div className="active-zone">
                             <span className="zone-label">YOUR ACTIVE</span>
                             <div className="active-row">
-                                <div className="active-area" onClick={handleActiveClick}>
+                                <div className="active-area">
                                     {me?.activePokemon ? (
                                         <Card card={me.activePokemon} size="lg" isActive={true} />
                                     ) : (
-                                        <div
-                                            className={`card empty-slot size-lg ${
-                                                selectedBenchedCard || selectedHandCard ? 'playable' : ''
-                                            }`}
-                                        >
-                                            SET ACTIVE
-                                        </div>
+                                        <div className="card empty-slot size-lg">PROMOTE</div>
                                     )}
                                 </div>
-                                {me?.activePokemon && isMyTurn && !needsPromote && (
+                                {me?.activePokemon && (
                                     <div className="combat-panel pixel-panel">
-                                        <span className="combat-label">ACTIONS</span>
-                                        {me.activePokemon.attacks?.map((att, i) => (
+                                        <span className="combat-label">
+                                            {isMyTurn && !needsPromote ? 'ACTIONS' : 'INFO'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="pixel-btn details-btn"
+                                            onClick={() => openDetails(me.activePokemon, `YOU (${me.id})`)}
+                                        >
+                                            DETAILS
+                                        </button>
+                                        {isMyTurn && !needsPromote && (
                                             <button
-                                                key={i}
-                                                className="pixel-btn danger attack-button"
-                                                onClick={() => actions.attack(i)}
-                                                disabled={
-                                                    !opponent?.activePokemon ||
-                                                    (me.activePokemon.energyAttached || 0) < att.cost
-                                                }
-                                            >
-                                                {att.name} · {att.damage}
-                                            </button>
-                                        ))}
-                                        {selectedHandCard?.type === 'Energy' && (
-                                            <button
+                                                type="button"
                                                 className="pixel-btn primary attach-btn"
-                                                onClick={() => {
-                                                    actions.attachEnergy(selectedHandCard.id);
-                                                    setSelectedHandCard(null);
-                                                }}
+                                                onClick={() => actions.attachEnergy('')}
                                                 disabled={me.hasAttached}
                                             >
-                                                ATTACH ENERGY
+                                                CHARGE ENERGY
                                             </button>
                                         )}
+                                        {isMyTurn &&
+                                            !needsPromote &&
+                                            me.activePokemon.attacks?.map((att, i) => (
+                                                <button
+                                                    key={i}
+                                                    className="pixel-btn danger attack-button"
+                                                    onClick={() => actions.attack(i)}
+                                                    disabled={
+                                                        !opponent?.activePokemon ||
+                                                        (me.activePokemon.energyAttached || 0) < att.cost
+                                                    }
+                                                >
+                                                    {att.name} · {att.damage}
+                                                </button>
+                                            ))}
                                     </div>
                                 )}
                             </div>
@@ -285,25 +285,12 @@ export const GameBoard = ({ onShowRules }) => {
 
             <footer className="hand-container pixel-panel">
                 <div className="hand-actions">
-                    <button
-                        className="pixel-btn primary draw-btn"
-                        onClick={actions.drawCard}
-                        disabled={!isMyTurn || needsPromote || me?.hasDrawn || me?.deck?.length === 0}
-                    >
-                        DRAW
-                    </button>
                     <div className="selected-info">
-                        {selectedHandCard && (
-                            <span>
-                                SEL: {selectedHandCard.name}
-                                {selectedHandCard.type === 'Energy' ? ' → ACTIVE' : ' → ZONE'}
-                            </span>
+                        {needsPromote && <span>PICK BACK-LINE TO PROMOTE (§6.3)</span>}
+                        {!needsPromote && isMyTurn && (
+                            <span className="animate-insert-coin">CHARGE · ATTACK · OR END TURN</span>
                         )}
-                        {selectedBenchedCard && <span>SEL BENCH: {selectedBenchedCard.name}</span>}
-                        {needsPromote && <span>PICK BENCH TO PROMOTE</span>}
-                        {!selectedHandCard && !selectedBenchedCard && !needsPromote && (
-                            <span className="animate-insert-coin">SELECT A CARD</span>
-                        )}
+                        {!needsPromote && !isMyTurn && <span>WAITING FOR OPPONENT</span>}
                     </div>
                     <div className="hand-action-btns">
                         <button
@@ -319,27 +306,30 @@ export const GameBoard = ({ onShowRules }) => {
                         >
                             SWAP
                         </button>
+                        {onShowRules && (
+                            <button type="button" className="pixel-btn" onClick={onShowRules}>
+                                RULES
+                            </button>
+                        )}
                     </div>
                 </div>
-
-                <div className="hand-cards">
-                    {me?.hand?.map((card, i) => (
-                        <div
-                            key={card.id || i}
-                            className={`hand-card-wrapper ${
-                                selectedHandCard?.id === card.id ? 'selected-card' : ''
-                            }`}
-                        >
-                            <Card
-                                card={card}
-                                size="md"
-                                isPlayable={isMyTurn && !needsPromote}
-                                onClick={() => handleHandCardClick(card)}
-                            />
+                <div className="hand-cards party-strip">
+                    {(me?.battleTeam || []).map((card) => (
+                        <div key={card.id} className="hand-card-wrapper">
+                            <Card card={card} size="sm" />
+                            <span className="cp-chip">CP {card.combatPower}</span>
                         </div>
                     ))}
                 </div>
             </footer>
+
+            {detailView && (
+                <CardDetail
+                    card={detailView.card}
+                    ownerLabel={detailView.ownerLabel}
+                    onClose={() => setDetailView(null)}
+                />
+            )}
         </div>
     );
 };
