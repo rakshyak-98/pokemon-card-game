@@ -11,6 +11,7 @@ export function useGameState() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [playerId, setPlayerId] = useState('player1');
+    const [vsCPU, setVsCPU] = useState(true);
 
     const fetchActions = useCallback(async () => {
         try {
@@ -64,10 +65,14 @@ export function useGameState() {
         return true;
     };
 
-    const startGame = async () => {
+    const startGame = async (opts = {}) => {
+        const practice = opts.vsCPU ?? vsCPU;
         if (!guard(ACTIONS.START_GAME)) return;
         try {
-            const res = await axios.post(`${API_BASE}/start`);
+            if (practice) {
+                setPlayerId('player1');
+            }
+            const res = await axios.post(`${API_BASE}/start`, { vsCPU: !!practice });
             applyResult(res.data);
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to start game');
@@ -171,6 +176,11 @@ export function useGameState() {
     const pendingDraw = me?.pendingDraw?.length > 0 ? me.pendingDraw : null;
     const needsPartySelect =
         ['TeamPreview', 'PartySelect', 'BetweenGames'].includes(gameState?.phase) && !me?.partyReady;
+    const isPractice = Boolean(gameState?.vsCPU ?? vsCPU);
+    const cpuThinking =
+        isPractice &&
+        gameState?.phase === 'InBattle' &&
+        gameState?.currentTurn === gameState?.cpuPlayerId;
 
     return {
         gameState,
@@ -179,6 +189,10 @@ export function useGameState() {
         error,
         playerId,
         setPlayerId,
+        vsCPU,
+        setVsCPU,
+        isPractice,
+        cpuThinking,
         me,
         opponent,
         isMyTurn,

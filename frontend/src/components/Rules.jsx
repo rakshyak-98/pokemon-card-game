@@ -98,9 +98,23 @@ const SECTIONS = [
         <ul>
           <li>Start a match → review opponent preview → lock a party of 3.</li>
           <li>Use DETAILS on your Active only (your private/public card data).</li>
-          <li>SWAP switches which seat you control on this local client.</li>
+          <li>SWAP switches which seat you control on this local client (2-player only).</li>
           <li>Between games, both players select a new party of 3 from the same Battle Team.</li>
         </ul>
+      </>
+    ),
+  },
+  {
+    id: 'practice',
+    marquee: '06 · PRACTICE',
+    title: 'Practice vs CPU',
+    body: (
+      <>
+        <p>
+          Enable <strong>Practice vs CPU</strong> on the start screen to learn the flow solo. The CPU
+          picks a legal party, charges energy, attacks when it can, and promotes after knockouts — so
+          you can focus on handbook timing without a second player.
+        </p>
       </>
     ),
   },

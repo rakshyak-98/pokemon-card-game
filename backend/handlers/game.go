@@ -84,10 +84,17 @@ func (h *GameHandler) StartGame(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	var req struct {
+		VsCPU bool `json:"vsCPU"`
+	}
+	if r.Body != nil && r.ContentLength != 0 {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
 	h.run(w, &command.StartGameCommand{
 		Receiver:  h.Facade,
 		Player1ID: "player1",
 		Player2ID: "player2",
+		VsCPU:     req.VsCPU,
 	})
 }
 

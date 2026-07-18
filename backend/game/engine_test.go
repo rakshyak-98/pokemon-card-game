@@ -6,7 +6,7 @@ import (
 
 func TestGOMatchFlow(t *testing.T) {
 	e := NewEngine(nil)
-	if err := e.StartGame("player1", "player2"); err != nil {
+	if err := e.StartGame("player1", "player2", false); err != nil {
 		t.Fatal(err)
 	}
 	if e.State.Phase != "TeamPreview" {

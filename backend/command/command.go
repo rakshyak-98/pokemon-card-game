@@ -30,7 +30,7 @@ type Command interface {
 
 // GameActions is the receiver interface Command objects call into.
 type GameActions interface {
-	StartGame(player1ID, player2ID string) error
+	StartGame(player1ID, player2ID string, vsCPU bool) error
 	DrawCard(playerID string) error
 	SelectDraw(playerID, cardID string) error
 	SelectParty(playerID string, cardIDs []string) error
@@ -46,15 +46,16 @@ type GameActions interface {
 type StartGameCommand struct {
 	Receiver             GameActions
 	Player1ID, Player2ID string
+	VsCPU                bool
 }
 
 func (c *StartGameCommand) Name() string     { return ActionStartGame }
 func (c *StartGameCommand) PlayerID() string { return c.Player1ID }
 func (c *StartGameCommand) Payload() any {
-	return map[string]string{"player1Id": c.Player1ID, "player2Id": c.Player2ID}
+	return map[string]any{"player1Id": c.Player1ID, "player2Id": c.Player2ID, "vsCPU": c.VsCPU}
 }
 func (c *StartGameCommand) Execute() error {
-	return c.Receiver.StartGame(c.Player1ID, c.Player2ID)
+	return c.Receiver.StartGame(c.Player1ID, c.Player2ID, c.VsCPU)
 }
 
 type DrawCardCommand struct {

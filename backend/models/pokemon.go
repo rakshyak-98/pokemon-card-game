@@ -92,6 +92,8 @@ type GameState struct {
 	TurnNumber  int           `json:"turnNumber"`
 	GameNumber  int           `json:"gameNumber,omitempty"`
 	WinsNeeded  int           `json:"winsNeeded,omitempty"`
+	VsCPU       bool          `json:"vsCPU,omitempty"`
+	CPUPlayerID string        `json:"cpuPlayerId,omitempty"`
 	LastAction  string        `json:"lastAction,omitempty"`
 	UpdatedAt   time.Time     `json:"updatedAt,omitempty"`
 }

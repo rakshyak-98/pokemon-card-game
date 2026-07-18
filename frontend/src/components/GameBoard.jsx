@@ -8,16 +8,20 @@ import './GameBoard.css';
 export const GameBoard = ({ onShowRules }) => {
     const {
         gameState, actionLog, loading, error, isMyTurn, me, opponent,
-        actions, setPlayerId, playerId, needsPromote, needsPartySelect
+        actions, setPlayerId, playerId, needsPromote, needsPartySelect,
+        vsCPU, setVsCPU, isPractice, cpuThinking
     } = useGameState();
     const [selectedBenchedCard, setSelectedBenchedCard] = useState(null);
     const [detailView, setDetailView] = useState(null);
     const [confirmingParty, setConfirmingParty] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const openDetails = (card, ownerLabel) => {
         if (!card) return;
         setDetailView({ card, ownerLabel });
     };
+
+    const opponentLabel = isPractice ? 'CPU' : opponent?.id;
 
     if (loading) {
         return (
@@ -38,16 +42,31 @@ export const GameBoard = ({ onShowRules }) => {
                     <div className="arcade-marquee">GO TOURNAMENT · GREAT LEAGUE</div>
                     <h1 className="game-title">POKÉMON GO<br />BATTLE</h1>
                     <p className="game-subtitle">HANDBOOK MATCH MODE</p>
-                    <div className="player-select">
-                        <label>PLAYER SELECT</label>
-                        <select value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
-                            <option value="player1">PLAYER 1</option>
-                            <option value="player2">PLAYER 2</option>
-                        </select>
-                    </div>
+
+                    <label className="mode-toggle">
+                        <input
+                            type="checkbox"
+                            checked={vsCPU}
+                            onChange={(e) => setVsCPU(e.target.checked)}
+                        />
+                        <span>Practice vs CPU (learn the rules)</span>
+                    </label>
+
+                    {!vsCPU && (
+                        <div className="player-select">
+                            <label>PLAYER SELECT</label>
+                            <select value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
+                                <option value="player1">PLAYER 1</option>
+                                <option value="player2">PLAYER 2</option>
+                            </select>
+                        </div>
+                    )}
                     {error && <div className="inline-error">{error}</div>}
-                    <button className="pixel-btn primary start-btn" onClick={actions.startGame}>
-                        PRESS START
+                    <button
+                        className="pixel-btn primary start-btn"
+                        onClick={() => actions.startGame({ vsCPU })}
+                    >
+                        {vsCPU ? 'PRACTICE START' : 'PRESS START'}
                     </button>
                     {onShowRules && (
                         <button type="button" className="pixel-btn rules-link-btn" onClick={onShowRules}>
@@ -64,12 +83,23 @@ export const GameBoard = ({ onShowRules }) => {
         return (
             <div className="waiting-screen">
                 <div className="arcade-cabinet pixel-panel animate-slam-in">
-                    <div className="arcade-marquee">MATCH OVER · §6.4</div>
+                    <div className="arcade-marquee">
+                        {isPractice ? 'PRACTICE OVER' : 'MATCH OVER · §6.4'}
+                    </div>
                     <h1 className="game-title">GAME OVER</h1>
-                    <p className="winner-banner">{gameState.winner} WINS!</p>
+                    <p className="winner-banner">
+                        {gameState.winner === gameState.cpuPlayerId
+                            ? 'CPU WINS!'
+                            : gameState.winner === playerId
+                              ? 'YOU WIN!'
+                              : `${gameState.winner} WINS!`}
+                    </p>
                     <p className="last-action">{gameState.lastAction}</p>
-                    <button className="pixel-btn primary start-btn" onClick={actions.startGame}>
-                        CONTINUE?
+                    <button
+                        className="pixel-btn primary start-btn"
+                        onClick={() => actions.startGame({ vsCPU: isPractice })}
+                    >
+                        {isPractice ? 'PRACTICE AGAIN' : 'CONTINUE?'}
                     </button>
                     {onShowRules && (
                         <button type="button" className="pixel-btn rules-link-btn" onClick={onShowRules}>
@@ -87,10 +117,11 @@ export const GameBoard = ({ onShowRules }) => {
             return (
                 <PartySelect
                     me={me}
-                    opponent={opponent}
                     gameNumber={gameState.gameNumber}
                     winsNeeded={gameState.winsNeeded}
                     confirming={confirmingParty}
+                    isPractice={isPractice}
+                    onNewGame={() => actions.startGame({ vsCPU: isPractice })}
                     onConfirm={async (cardIds) => {
                         setConfirmingParty(true);
                         try {
@@ -155,112 +186,210 @@ export const GameBoard = ({ onShowRules }) => {
         }
         : null;
 
+    const renderActiveHp = (card) => {
+        if (!card || card.hp == null) return null;
+        const maxHp = card.maxHp || card.hp;
+        const pct = maxHp ? Math.max(0, Math.min(100, Math.round((card.hp / maxHp) * 100))) : 100;
+        return (
+            <div className="active-hp-meter" aria-label={`HP ${card.hp} of ${maxHp}`}>
+                <div className="active-hp-row">
+                    <span className="hp-label">HP</span>
+                    <span className="hp-value">{card.hp} / {maxHp}</span>
+                </div>
+                <div className="active-hp-track">
+                    <div
+                        className={`active-hp-fill ${pct <= 25 ? 'low' : pct <= 50 ? 'mid' : ''}`}
+                        style={{ width: `${pct}%` }}
+                    />
+                </div>
+            </div>
+        );
+    };
+
+    const runMenuAction = (fn) => {
+        setMenuOpen(false);
+        fn?.();
+    };
+
+    const statusHint = needsPromote
+        ? 'PICK BACK-LINE TO PROMOTE (§6.3)'
+        : isMyTurn
+          ? 'CHARGE · ATTACK · OR END TURN'
+          : cpuThinking
+            ? 'CPU IS PLAYING…'
+            : 'WAITING FOR OPPONENT';
+
+    const turnLabel = needsPromote
+        ? 'PROMOTE!'
+        : cpuThinking
+          ? 'CPU TURN'
+          : isMyTurn
+            ? 'YOUR TURN'
+            : 'WAIT';
+
     return (
         <div className="game-board">
-            <header className="hud pixel-panel">
-                <div className="player-info opponent-info">
-                    <span className="player-name">VS {opponent?.id}</span>
+            <div className={`board-menu ${menuOpen ? 'open' : ''}`}>
+                <button
+                    type="button"
+                    className="pixel-btn board-menu-toggle"
+                    aria-expanded={menuOpen}
+                    aria-haspopup="menu"
+                    onClick={() => setMenuOpen((open) => !open)}
+                >
+                    MENU {menuOpen ? '▴' : '▾'}
+                </button>
+                {menuOpen && (
+                    <div className="board-menu-dropdown pixel-panel" role="menu">
+                        {!isPractice && (
+                            <button
+                                type="button"
+                                className="board-menu-item"
+                                role="menuitem"
+                                onClick={() => runMenuAction(() =>
+                                    setPlayerId(playerId === 'player1' ? 'player2' : 'player1')
+                                )}
+                            >
+                                SWAP
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            className="board-menu-item"
+                            role="menuitem"
+                            onClick={() => runMenuAction(() =>
+                                actions.startGame({ vsCPU: isPractice })
+                            )}
+                        >
+                            NEW GAME
+                        </button>
+                        {onShowRules && (
+                            <button
+                                type="button"
+                                className="board-menu-item"
+                                role="menuitem"
+                                onClick={() => runMenuAction(onShowRules)}
+                            >
+                                RULES
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            <header className="card-rail top-rail pixel-panel">
+                <div className="rail-meta">
+                    <span className="player-name">VS {opponentLabel}</span>
                     <div className="stat-row">
                         <span className="stat-chip">WINS {opponent?.gamesWon || 0}</span>
                         <span className="stat-chip">LEFT {(opponent?.activePokemon ? 1 : 0) + (opponent?.benchedPokemon?.length || 0)}</span>
                         <span className="stat-chip">SHIELD {opponent?.protectShields ?? 0}</span>
                     </div>
                 </div>
-                <div className="turn-indicator">
-                    <h2 className={isMyTurn ? 'glow' : ''}>
-                        {needsPromote ? 'PROMOTE!' : isMyTurn ? 'YOUR TURN' : 'WAIT'}
-                    </h2>
-                    <p className="turn-meta">
-                        G{gameState.gameNumber} · T{gameState.turnNumber}
-                        {gameState.lastAction ? ` · ${gameState.lastAction}` : ''}
-                    </p>
-                </div>
-                <div className="player-info my-info">
-                    <span className="player-name">YOU ({me?.id})</span>
-                    <div className="stat-row">
-                        <span className="stat-chip">WINS {me?.gamesWon || 0}</span>
-                        <span className="stat-chip">SHIELD {me?.protectShields ?? 0}</span>
-                        <span className="stat-chip">CP TEAM</span>
-                    </div>
-                </div>
             </header>
 
-            {error && <div className="banner-error">{error}</div>}
+            <div className="mid-row">
+                <aside className="message-panel pixel-screen">
+                    <h3>■ STATUS</h3>
+                    <p className={`msg-turn ${isMyTurn ? 'glow' : ''}`}>{turnLabel}</p>
+                    <p className="msg-meta">
+                        G{gameState.gameNumber} · T{gameState.turnNumber}
+                    </p>
+                    <p className={`msg-hint ${isMyTurn && !needsPromote ? 'animate-insert-coin' : ''}`}>
+                        {statusHint}
+                    </p>
+                    {gameState.lastAction && (
+                        <p className="msg-last">{gameState.lastAction}</p>
+                    )}
+                    {error && <p className="msg-error">{error}</p>}
+                    <div className="msg-you">
+                        <span className="player-name">YOU ({me?.id})</span>
+                        <div className="stat-row">
+                            <span className="stat-chip">WINS {me?.gamesWon || 0}</span>
+                            <span className="stat-chip">SHIELD {me?.protectShields ?? 0}</span>
+                        </div>
+                    </div>
+                </aside>
 
-            <div className="battlefield">
-                <section className="field-column">
-                    <div className="player-side top-side">
-                        {renderBench(opponent, false)}
-                        <div className="active-zone">
-                            <span className="zone-label">OPP ACTIVE</span>
-                            <div className="active-area">
-                                {oppActiveDisplay ? (
+                <section className="active-arena">
+                    <div className="arena-faceoff">
+                        <div className="arena-card">
+                            {oppActiveDisplay ? (
+                                <>
                                     <Card card={oppActiveDisplay} size="lg" isActive={true} />
-                                ) : (
-                                    <div className="card empty-slot size-lg">ACTIVE</div>
-                                )}
-                            </div>
+                                    {renderActiveHp(oppActiveDisplay)}
+                                </>
+                            ) : (
+                                <div className="card empty-slot size-lg">OPP</div>
+                            )}
                         </div>
-                    </div>
-
-                    <div className="battle-line" aria-hidden="true">
                         <span className="vs-badge">VS</span>
+                        <div className="arena-card">
+                            {me?.activePokemon ? (
+                                <>
+                                    <Card card={me.activePokemon} size="lg" isActive={true} />
+                                    {renderActiveHp(me.activePokemon)}
+                                </>
+                            ) : (
+                                <div className="card empty-slot size-lg">PROMOTE</div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="player-side bottom-side">
-                        <div className="active-zone">
-                            <span className="zone-label">YOUR ACTIVE</span>
-                            <div className="active-row">
-                                <div className="active-area">
-                                    {me?.activePokemon ? (
-                                        <Card card={me.activePokemon} size="lg" isActive={true} />
-                                    ) : (
-                                        <div className="card empty-slot size-lg">PROMOTE</div>
-                                    )}
-                                </div>
-                                {me?.activePokemon && (
-                                    <div className="combat-panel pixel-panel">
-                                        <span className="combat-label">
-                                            {isMyTurn && !needsPromote ? 'ACTIONS' : 'INFO'}
-                                        </span>
+                    {me?.activePokemon && (
+                        <div className="combat-panel pixel-panel">
+                            <span className="combat-label">
+                                {isMyTurn && !needsPromote ? 'YOUR OPTIONS' : 'INFO'}
+                            </span>
+                            <button
+                                type="button"
+                                className="pixel-btn details-btn"
+                                onClick={() => openDetails(me.activePokemon, `YOU (${me.id})`)}
+                            >
+                                DETAILS
+                            </button>
+                            {isMyTurn && !needsPromote && !cpuThinking && (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="pixel-btn primary draw-btn"
+                                        onClick={actions.drawCard}
+                                        disabled={me.hasDrawn}
+                                    >
+                                        DRAW
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="pixel-btn primary attach-btn"
+                                        onClick={() => actions.attachEnergy('')}
+                                        disabled={me.hasAttached}
+                                    >
+                                        CHARGE ENERGY
+                                    </button>
+                                    {me.activePokemon.attacks?.map((att, i) => (
                                         <button
-                                            type="button"
-                                            className="pixel-btn details-btn"
-                                            onClick={() => openDetails(me.activePokemon, `YOU (${me.id})`)}
+                                            key={i}
+                                            className="pixel-btn danger attack-button"
+                                            onClick={() => actions.attack(i)}
+                                            disabled={
+                                                !opponent?.activePokemon ||
+                                                (me.activePokemon.energyAttached || 0) < att.cost
+                                            }
                                         >
-                                            DETAILS
+                                            {att.name} · {att.damage}
                                         </button>
-                                        {isMyTurn && !needsPromote && (
-                                            <button
-                                                type="button"
-                                                className="pixel-btn primary attach-btn"
-                                                onClick={() => actions.attachEnergy('')}
-                                                disabled={me.hasAttached}
-                                            >
-                                                CHARGE ENERGY
-                                            </button>
-                                        )}
-                                        {isMyTurn &&
-                                            !needsPromote &&
-                                            me.activePokemon.attacks?.map((att, i) => (
-                                                <button
-                                                    key={i}
-                                                    className="pixel-btn danger attack-button"
-                                                    onClick={() => actions.attack(i)}
-                                                    disabled={
-                                                        !opponent?.activePokemon ||
-                                                        (me.activePokemon.energyAttached || 0) < att.cost
-                                                    }
-                                                >
-                                                    {att.name} · {att.damage}
-                                                </button>
-                                            ))}
-                                    </div>
-                                )}
-                            </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        className="pixel-btn end-turn-btn"
+                                        onClick={actions.endTurn}
+                                    >
+                                        END TURN
+                                    </button>
+                                </>
+                            )}
                         </div>
-                        {renderBench(me, true)}
-                    </div>
+                    )}
                 </section>
 
                 <aside className="action-log pixel-screen">
@@ -283,43 +412,25 @@ export const GameBoard = ({ onShowRules }) => {
                 </aside>
             </div>
 
-            <footer className="hand-container pixel-panel">
-                <div className="hand-actions">
-                    <div className="selected-info">
-                        {needsPromote && <span>PICK BACK-LINE TO PROMOTE (§6.3)</span>}
-                        {!needsPromote && isMyTurn && (
-                            <span className="animate-insert-coin">CHARGE · ATTACK · OR END TURN</span>
-                        )}
-                        {!needsPromote && !isMyTurn && <span>WAITING FOR OPPONENT</span>}
-                    </div>
-                    <div className="hand-action-btns">
-                        <button
-                            className="pixel-btn end-turn-btn"
-                            disabled={!isMyTurn || needsPromote}
-                            onClick={actions.endTurn}
-                        >
-                            END TURN
-                        </button>
-                        <button
-                            className="pixel-btn"
-                            onClick={() => setPlayerId(playerId === 'player1' ? 'player2' : 'player1')}
-                        >
-                            SWAP
-                        </button>
-                        {onShowRules && (
-                            <button type="button" className="pixel-btn" onClick={onShowRules}>
-                                RULES
-                            </button>
+            <footer className="card-rail bottom-rail pixel-panel">
+                <div className="rail-cards">
+                    {renderBench(me, true)}
+                    <div className="rail-active">
+                        <span className="zone-label">YOUR ACTIVE</span>
+                        {me?.activePokemon ? (
+                            <Card card={me.activePokemon} size="md" isActive={true} />
+                        ) : (
+                            <div className="card empty-slot size-md">PROMOTE</div>
                         )}
                     </div>
-                </div>
-                <div className="hand-cards party-strip">
-                    {(me?.battleTeam || []).map((card) => (
-                        <div key={card.id} className="hand-card-wrapper">
-                            <Card card={card} size="sm" />
-                            <span className="cp-chip">CP {card.combatPower}</span>
-                        </div>
-                    ))}
+                    <div className="hand-cards party-strip">
+                        {(me?.battleTeam || []).map((card) => (
+                            <div key={card.id} className="hand-card-wrapper">
+                                <Card card={card} size="sm" />
+                                <span className="cp-chip">CP {card.combatPower}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </footer>
 

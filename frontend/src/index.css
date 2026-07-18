@@ -1,35 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=Press+Start+2P&family=VT323&display=swap');
 
 :root {
-  /* Arcade CRT palette — Game Boy meets 16-bit stadium */
-  --bg-deep: #1a2f1a;
-  --bg-mid: #2d4a2d;
-  --bg-light: #3e6b3e;
-  --panel-face: #c4d4a8;
-  --panel-dark: #8a9a6e;
-  --panel-light: #e8f0d0;
-  --ink: #1a2f1a;
-  --ink-muted: #4a5c3a;
-  --screen-black: #0d1a0d;
+  /* High-contrast arcade field — deep turf + bright panel chrome */
+  --bg-deep: #0c1810;
+  --bg-mid: #163022;
+  --bg-light: #234832;
+  --panel-face: #f3f6e6;
+  --panel-dark: #8f9e6c;
+  --panel-light: #fcfff3;
+  --ink: #0a140c;
+  --ink-muted: #2a3a28;
+  --screen-black: #050d08;
 
-  --accent-gold: #f0c040;
-  --accent-gold-dark: #b8860b;
-  --accent-red: #e04040;
-  --accent-red-dark: #a02828;
-  --accent-cyan: #40c8c8;
-  --accent-blue: #4080d0;
-  --accent-orange: #f07828;
-  --accent-lime: #70e040;
+  --accent-gold: #ffcc33;
+  --accent-gold-dark: #7a5800;
+  --accent-red: #e83232;
+  --accent-red-dark: #8e1c1c;
+  --accent-cyan: #20d6d6;
+  --accent-blue: #2f74d4;
+  --accent-orange: #ef6a12;
+  --accent-lime: #a8ff4a;
 
-  --type-electric: #f0c040;
-  --type-fire: #e04040;
-  --type-water: #4080d0;
-  --type-grass: #50a030;
-  --type-psychic: #c050a0;
-  --type-neutral: #708070;
+  --type-electric: #e6b800;
+  --type-fire: #d62828;
+  --type-water: #1f6fd0;
+  --type-grass: #2f8f24;
+  --type-psychic: #b03d90;
+  --type-neutral: #556655;
 
-  --font-pixel: 'Press Start 2P', monospace;
-  --font-screen: 'VT323', monospace;
+  --text-on-dark: #f5ffe8;
+  --text-on-dark-muted: #c5d9b0;
+  --text-on-screen: #b8ff6a;
+  --danger-soft: #ffc2c2;
+
+  /* Typography: display = short titles, ui = labels/buttons, body = readable copy */
+  --font-pixel: 'Press Start 2P', 'Pixelify Sans', monospace;
+  --font-ui: 'Pixelify Sans', 'VT323', sans-serif;
+  --font-screen: 'VT323', 'Pixelify Sans', monospace;
+
+  --text-xs: 0.8125rem;   /* 13px */
+  --text-sm: 0.9375rem;   /* 15px */
+  --text-md: 1.125rem;    /* 18px */
+  --text-lg: 1.35rem;     /* ~22px */
+  --text-xl: 1.6rem;      /* ~26px */
+  --text-2xl: clamp(1.15rem, 2.4vw, 1.5rem);
+  --text-display: clamp(1.05rem, 3.2vw, 1.55rem);
+
+  --leading-tight: 1.25;
+  --leading-snug: 1.4;
+  --leading-normal: 1.55;
+  --tracking-ui: 0.02em;
 
   --card-width: 128px;
   --card-height: 180px;
@@ -46,20 +66,23 @@
 
 body {
   font-family: var(--font-screen);
-  font-size: 20px;
+  font-size: var(--text-lg);
+  line-height: var(--leading-normal);
+  letter-spacing: 0.01em;
   background-color: var(--bg-deep);
-  color: var(--panel-light);
+  color: var(--text-on-dark);
   min-height: 100vh;
   overflow-x: hidden;
-  /* Brick / block playfield */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   background-image:
-    linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.35)),
+    linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.42)),
     repeating-linear-gradient(
       0deg,
       transparent,
       transparent 15px,
-      rgba(0, 0, 0, 0.12) 15px,
-      rgba(0, 0, 0, 0.12) 16px
+      rgba(0, 0, 0, 0.16) 15px,
+      rgba(0, 0, 0, 0.16) 16px
     ),
     repeating-linear-gradient(
       90deg,
@@ -75,7 +98,6 @@ body {
   background-size: 100% 100%, 100% 100%, 64px 64px;
 }
 
-/* CRT scanlines overlay */
 body::after {
   content: '';
   pointer-events: none;
@@ -105,7 +127,6 @@ body::after {
   z-index: 1;
 }
 
-/* ── Block / beveled panels (old-school UI chrome) ── */
 .pixel-panel {
   background: var(--panel-face);
   color: var(--ink);
@@ -119,21 +140,24 @@ body::after {
 
 .pixel-screen {
   background: var(--screen-black);
-  color: var(--accent-lime);
+  color: var(--text-on-screen);
   border: var(--pixel) solid var(--ink);
   box-shadow:
     inset 4px 4px 0 rgba(0, 0, 0, 0.6),
     4px 4px 0 rgba(0, 0, 0, 0.35);
   font-family: var(--font-screen);
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
 }
 
 .pixel-btn {
-  font-family: var(--font-pixel);
-  font-size: 10px;
-  line-height: 1.4;
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: var(--leading-snug);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0.65rem 1rem;
+  letter-spacing: var(--tracking-ui);
+  padding: 0.7rem 1.1rem;
   cursor: pointer;
   color: var(--ink);
   background: var(--accent-gold);
@@ -144,7 +168,7 @@ body::after {
     inset 3px 3px 0 #ffe080,
     4px 4px 0 rgba(0, 0, 0, 0.4);
   transition: transform 0.05s steps(2), box-shadow 0.05s steps(2);
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .pixel-btn:hover:not(:disabled) {
@@ -203,7 +227,6 @@ body::after {
     5px 5px 0 rgba(0, 0, 0, 0.4);
 }
 
-/* ── Retro animations ── */
 @keyframes blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0.25; }

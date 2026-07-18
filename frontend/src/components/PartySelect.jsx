@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Card } from './Card';
 import { BATTLE_PARTY_SIZE, GREAT_LEAGUE_CP_CAP } from '../rules/handbook';
-import { publicTeamPreview, validateBattleParty } from '../rules/validateAction';
+import { validateBattleParty } from '../rules/validateAction';
 import './PartySelect.css';
 
-export const PartySelect = ({ me, opponent, gameNumber, winsNeeded, onConfirm, confirming }) => {
+export const PartySelect = ({ me, gameNumber, winsNeeded, onConfirm, confirming, isPractice, onNewGame }) => {
   const [selected, setSelected] = useState([]);
 
   const toggle = (cardId) => {
@@ -16,12 +16,13 @@ export const PartySelect = ({ me, opponent, gameNumber, winsNeeded, onConfirm, c
   };
 
   const check = validateBattleParty(me?.battleTeam || [], selected);
-  const oppPreview = publicTeamPreview(opponent?.battleTeam || []);
 
   return (
     <div className="party-select-screen">
       <div className="party-select-panel pixel-panel animate-slam-in">
-        <div className="arcade-marquee">TEAM PREVIEW · §6.1</div>
+        <div className="arcade-marquee">
+          {isPractice ? 'PRACTICE · VS CPU' : 'TEAM PREVIEW · §6.1'}
+        </div>
         <h1 className="game-title">SELECT BATTLE PARTY</h1>
         <p className="party-select-meta">
           Game {gameNumber || 1} · First to {winsNeeded || 2} · Great League ≤{GREAT_LEAGUE_CP_CAP} CP
@@ -68,19 +69,11 @@ export const PartySelect = ({ me, opponent, gameNumber, winsNeeded, onConfirm, c
           </>
         )}
 
-        <section className="opp-preview pixel-screen">
-          <h3>■ OPP TEAM PREVIEW (PUBLIC §6.5.1)</h3>
-          <ul>
-            {oppPreview.map((row) => (
-              <li key={row.pokeApiId || row.name}>
-                <span className="preview-name">{row.name}</span>
-                <span>CP {row.combatPower}</span>
-                <span>{row.elementType}</span>
-                <span>{row.moves?.join(' / ')}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {onNewGame && (
+          <button type="button" className="pixel-btn" onClick={onNewGame}>
+            NEW GAME
+          </button>
+        )}
       </div>
     </div>
   );

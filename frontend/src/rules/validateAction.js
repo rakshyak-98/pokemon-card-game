@@ -109,7 +109,14 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
       return validateBattleParty(me.battleTeam, payload.cardIds);
     }
 
-    case ACTIONS.DRAW_CARD:
+    case ACTIONS.DRAW_CARD: {
+      if (phase !== PHASE.IN_BATTLE) return { ok: false, error: 'Draw only during battle' };
+      if (!isMyTurn) return { ok: false, error: 'Not your turn' };
+      if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon' };
+      if (me.hasDrawn) return { ok: false, error: 'Already drawn this turn' };
+      return { ok: true };
+    }
+
     case ACTIONS.SELECT_DRAW:
     case ACTIONS.PLAY_BENCH:
       return { ok: false, error: `${action} is not used in Pokémon GO tournament battles (handbook §6)` };

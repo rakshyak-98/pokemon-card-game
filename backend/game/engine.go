@@ -41,7 +41,8 @@ func (e *Engine) StateSnapshot() *models.GameState {
 
 // StartGame initializes a Pokémon GO–style match: each player gets a legal Great League
 // Battle Team (6 unique Pokémon), then Team Preview / party select begins (§3.1, §6.1).
-func (e *Engine) StartGame(player1ID, player2ID string) error {
+// If vsCPU is true, player2 is controlled by the practice AI.
+func (e *Engine) StartGame(player1ID, player2ID string, vsCPU bool) error {
 	if player1ID == "" || player2ID == "" {
 		return errors.New("both player ids are required")
 	}
@@ -58,6 +59,11 @@ func (e *Engine) StartGame(player1ID, player2ID string) error {
 		return err
 	}
 
+	last := "match_started — exchange team preview lists (§6.1)"
+	if vsCPU {
+		last = "practice match vs CPU — pick your battle party to learn the rules"
+	}
+
 	e.State = &models.GameState{
 		ID:          uuid.NewString(),
 		Status:      models.StatusSetup,
@@ -67,8 +73,13 @@ func (e *Engine) StartGame(player1ID, player2ID string) error {
 		TurnNumber:  0,
 		GameNumber:  1,
 		WinsNeeded:  rules.DefaultMatchFormatWins,
-		LastAction:  "match_started — exchange team preview lists (§6.1)",
+		VsCPU:       vsCPU,
+		CPUPlayerID: "",
+		LastAction:  last,
 		UpdatedAt:   time.Now().UTC(),
+	}
+	if vsCPU {
+		e.State.CPUPlayerID = player2ID
 	}
 	return nil
 }
@@ -311,9 +322,18 @@ func (e *Engine) requirePlayable(playerID string) (*models.PlayerState, error) {
 	return player, nil
 }
 
-// DrawCard is disabled under Pokémon GO tournament rules (§6).
+// DrawCard acknowledges the turn draw step (no deck in GO mode — marks hasDrawn).
 func (e *Engine) DrawCard(playerID string) error {
-	return errors.New("draw is not used in Pokémon GO tournament battles (handbook §6)")
+	player, err := e.requirePlayable(playerID)
+	if err != nil {
+		return err
+	}
+	if player.HasDrawn {
+		return errors.New("already drawn this turn")
+	}
+	player.HasDrawn = true
+	e.State.LastAction = fmt.Sprintf("%s drew (turn ready)", playerID)
+	return nil
 }
 
 func (e *Engine) SelectDraw(playerID, cardID string) error {
@@ -373,7 +393,7 @@ func (e *Engine) SelectParty(playerID string, cardIDs []string) error {
 	player.BenchedPokemon = append([]models.Card(nil), chosen[1:]...)
 	player.ProtectShields = rules.ProtectShieldsPerGame
 	player.HasAttached = false
-	player.HasDrawn = true // no draw step in GO mode
+	player.HasDrawn = false
 	player.PartyReady = true
 	player.DiscardPile = nil
 	e.State.LastAction = fmt.Sprintf("%s selected battle party", playerID)

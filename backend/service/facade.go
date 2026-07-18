@@ -108,6 +108,8 @@ func (f *GameFacade) Execute(cmd command.Command) (*models.GameState, error) {
 	}
 
 	f.engine.State.UpdatedAt = time.Now().UTC()
+	f.engine.RunCPUIfNeeded()
+	f.engine.State.UpdatedAt = time.Now().UTC()
 	f.memory.Set(f.engine.State)
 	if saveErr := f.db.SaveGame(f.engine.State); saveErr != nil {
 		return f.engine.State, saveErr
@@ -129,8 +131,8 @@ func (f *GameFacade) ListActions(limit int) ([]models.ActionLog, error) {
 
 // --- command.GameActions receiver ---
 
-func (f *GameFacade) StartGame(player1ID, player2ID string) error {
-	return f.engine.StartGame(player1ID, player2ID)
+func (f *GameFacade) StartGame(player1ID, player2ID string, vsCPU bool) error {
+	return f.engine.StartGame(player1ID, player2ID, vsCPU)
 }
 
 func (f *GameFacade) DrawCard(playerID string) error {

@@ -37,7 +37,7 @@ On first boot the server fetches Gen 1 (ids 1–151) into `pokemons` and builds 
 | GET | `/api/pokemon` | — (full catalog) |
 | GET | `/api/pokemon/{id}` | — (one entry by PokeAPI id) |
 | GET | `/api/game` | — |
-| POST | `/api/game/start` | — (builds Great League Battle Teams, Team Preview) |
+| POST | `/api/game/start` | `{ "vsCPU": true }` optional — practice match vs AI |
 | POST | `/api/game/select-party` | `{ "playerId", "cardIds": [3 ids] }` |
 | POST | `/api/game/draw` | disabled under GO handbook rules |
 | POST | `/api/game/draw/select` | disabled under GO handbook rules |

@@ -35,7 +35,10 @@ func ValidateAction(state *models.GameState, playerID, action string, payload ma
 	case ActionSelectParty:
 		return validateSelectParty(state, playerID, payload)
 
-	case ActionDrawCard, ActionSelectDraw, ActionPlayBench:
+	case ActionDrawCard:
+		return validateDrawCard(state, playerID)
+
+	case ActionSelectDraw, ActionPlayBench:
 		return fmt.Errorf("%s is not used in Pokémon GO tournament battles (handbook §6)", action)
 
 	case ActionAttachEnergy:
@@ -135,6 +138,23 @@ func validateChargeEnergy(state *models.GameState, playerID string) error {
 	}
 	if p.HasAttached {
 		return fmt.Errorf("already charged energy this turn")
+	}
+	return nil
+}
+
+func validateDrawCard(state *models.GameState, playerID string) error {
+	if Phase(state.Phase) != PhaseInBattle {
+		return fmt.Errorf("draw only during battle")
+	}
+	p, err := requirePlayerTurn(state, playerID)
+	if err != nil {
+		return err
+	}
+	if p.ActivePokemon == nil {
+		return fmt.Errorf("no active Pokémon")
+	}
+	if p.HasDrawn {
+		return fmt.Errorf("already drawn this turn")
 	}
 	return nil
 }

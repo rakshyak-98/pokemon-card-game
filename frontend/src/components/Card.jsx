@@ -31,7 +31,10 @@ export const Card = ({ card, className = '', onClick, isPlayable = false, isActi
                 {card.hp != null && (
                     <div className="card-hp">
                         <span className="hp-label">HP</span>
-                        <span className="hp-value">{card.hp}</span>
+                        <span className="hp-value">
+                            {card.hp}
+                            {card.maxHp != null ? `/${card.maxHp}` : ''}
+                        </span>
                         <TypeIcon type={elementType} />
                     </div>
                 )}
