@@ -3,7 +3,7 @@ import { useGameState } from '../hooks/useGameState';
 import { Card } from './Card';
 import './GameBoard.css';
 
-export const GameBoard = () => {
+export const GameBoard = ({ onShowRules }) => {
     const {
         gameState, actionLog, loading, error, isMyTurn, me, opponent,
         actions, setPlayerId, playerId, needsPromote
@@ -41,6 +41,11 @@ export const GameBoard = () => {
                     <button className="pixel-btn primary start-btn" onClick={actions.startGame}>
                         PRESS START
                     </button>
+                    {onShowRules && (
+                        <button type="button" className="pixel-btn rules-link-btn" onClick={onShowRules}>
+                            How to play
+                        </button>
+                    )}
                     <p className="insert-coin animate-insert-coin">INSERT COIN</p>
                 </div>
             </div>
@@ -58,6 +63,11 @@ export const GameBoard = () => {
                     <button className="pixel-btn primary start-btn" onClick={actions.startGame}>
                         CONTINUE?
                     </button>
+                    {onShowRules && (
+                        <button type="button" className="pixel-btn rules-link-btn" onClick={onShowRules}>
+                            How to play
+                        </button>
+                    )}
                     <p className="insert-coin animate-insert-coin">PRESS START</p>
                 </div>
             </div>
@@ -118,16 +128,26 @@ export const GameBoard = () => {
 
         return (
             <div className={`bench-area ${isMe ? 'my-bench' : 'opponent-bench'}`}>
+                <span className="zone-label">{isMe ? 'YOUR BENCH' : 'OPP BENCH'}</span>
                 <div className="bench-slots">
                     {benchSlots.map((card, idx) => (
-                        <div key={idx} className="bench-slot-wrapper" onClick={() => isMe ? handleBenchClick(card) : null}>
+                        <div
+                            key={idx}
+                            className="bench-slot-wrapper"
+                            onClick={() => (isMe ? handleBenchClick(card) : null)}
+                        >
                             {card ? (
                                 <Card
                                     card={card}
+                                    size="sm"
                                     isPlayable={isMe && ((isMyTurn && !me?.activePokemon) || needsPromote)}
                                 />
                             ) : (
-                                <div className={`card empty-slot ${isMe && isMyTurn && selectedHandCard?.type === 'Pokemon' ? 'playable' : ''}`}>
+                                <div
+                                    className={`card empty-slot size-sm ${
+                                        isMe && isMyTurn && selectedHandCard?.type === 'Pokemon' ? 'playable' : ''
+                                    }`}
+                                >
                                     BENCH
                                 </div>
                             )}
@@ -140,10 +160,10 @@ export const GameBoard = () => {
 
     return (
         <div className="game-board">
-            <div className="hud pixel-panel">
+            <header className="hud pixel-panel">
                 <div className="player-info opponent-info">
                     <span className="player-name">VS {opponent?.id}</span>
-                    <div>
+                    <div className="stat-row">
                         <span className="stat-chip">DECK {opponent?.deck?.length}</span>
                         <span className="stat-chip">HAND {opponent?.hand?.length}</span>
                         <span className="stat-chip">PRIZE {opponent?.prizeCards?.length}</span>
@@ -151,79 +171,107 @@ export const GameBoard = () => {
                 </div>
                 <div className="turn-indicator">
                     <h2 className={isMyTurn ? 'glow' : ''}>
-                        {needsPromote ? 'PROMOTE!' : isMyTurn ? 'YOUR TURN' : "CPU WAIT"}
+                        {needsPromote ? 'PROMOTE!' : isMyTurn ? 'YOUR TURN' : 'CPU WAIT'}
                     </h2>
-                    <p className="turn-meta">TURN {gameState.turnNumber} · {gameState.lastAction}</p>
+                    <p className="turn-meta">
+                        TURN {gameState.turnNumber}
+                        {gameState.lastAction ? ` · ${gameState.lastAction}` : ''}
+                    </p>
                 </div>
                 <div className="player-info my-info">
                     <span className="player-name">YOU ({me?.id})</span>
-                    <div>
+                    <div className="stat-row">
                         <span className="stat-chip">DECK {me?.deck?.length}</span>
                         <span className="stat-chip">PRIZE {me?.prizeCards?.length}</span>
                         <span className="stat-chip">DISC {me?.discardPile?.length}</span>
                     </div>
                 </div>
-            </div>
+            </header>
 
             {error && <div className="banner-error">{error}</div>}
 
-            <div className="arena">
-                <div className="player-side top-side">
-                    {renderBench(opponent, false)}
-                    <div className="active-area">
-                        {opponent?.activePokemon ? (
-                            <Card card={opponent.activePokemon} isActive={true} />
-                        ) : (
-                            <div className="card empty-slot">ACTIVE</div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="battle-line">
-                    <span className="vs-badge">VS</span>
-                </div>
-
-                <div className="player-side bottom-side">
-                    <div className="active-area" onClick={handleActiveClick}>
-                        {me?.activePokemon ? (
-                            <div className="active-card-container">
-                                <Card card={me.activePokemon} isActive={true} />
-                                {isMyTurn && !needsPromote && me.activePokemon.attacks?.map((att, i) => (
-                                    <button
-                                        key={i}
-                                        className="pixel-btn danger attack-button"
-                                        onClick={(e) => { e.stopPropagation(); actions.attack(i); }}
-                                        disabled={!opponent?.activePokemon || (me.activePokemon.energyAttached || 0) < att.cost}
-                                    >
-                                        {att.name} · {att.damage} DMG
-                                    </button>
-                                ))}
-                                {isMyTurn && selectedHandCard?.type === 'Energy' && (
-                                    <button
-                                        className="pixel-btn primary attach-btn"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            actions.attachEnergy(selectedHandCard.id);
-                                            setSelectedHandCard(null);
-                                        }}
-                                        disabled={me.hasAttached}
-                                    >
-                                        ATTACH ENERGY
-                                    </button>
+            <div className="battlefield">
+                <section className="field-column">
+                    <div className="player-side top-side">
+                        {renderBench(opponent, false)}
+                        <div className="active-zone">
+                            <span className="zone-label">OPP ACTIVE</span>
+                            <div className="active-area">
+                                {opponent?.activePokemon ? (
+                                    <Card card={opponent.activePokemon} size="lg" isActive={true} />
+                                ) : (
+                                    <div className="card empty-slot size-lg">ACTIVE</div>
                                 )}
                             </div>
-                        ) : (
-                            <div className={`card empty-slot ${(selectedBenchedCard || selectedHandCard) ? 'playable' : ''}`}>
-                                SET ACTIVE
-                            </div>
-                        )}
+                        </div>
                     </div>
-                    {renderBench(me, true)}
-                </div>
+
+                    <div className="battle-line" aria-hidden="true">
+                        <span className="vs-badge">VS</span>
+                    </div>
+
+                    <div className="player-side bottom-side">
+                        <div className="active-zone">
+                            <span className="zone-label">YOUR ACTIVE</span>
+                            <div className="active-row">
+                                <div className="active-area" onClick={handleActiveClick}>
+                                    {me?.activePokemon ? (
+                                        <Card card={me.activePokemon} size="lg" isActive={true} />
+                                    ) : (
+                                        <div
+                                            className={`card empty-slot size-lg ${
+                                                selectedBenchedCard || selectedHandCard ? 'playable' : ''
+                                            }`}
+                                        >
+                                            SET ACTIVE
+                                        </div>
+                                    )}
+                                </div>
+                                {me?.activePokemon && isMyTurn && !needsPromote && (
+                                    <div className="combat-panel pixel-panel">
+                                        <span className="combat-label">ACTIONS</span>
+                                        {me.activePokemon.attacks?.map((att, i) => (
+                                            <button
+                                                key={i}
+                                                className="pixel-btn danger attack-button"
+                                                onClick={() => actions.attack(i)}
+                                                disabled={
+                                                    !opponent?.activePokemon ||
+                                                    (me.activePokemon.energyAttached || 0) < att.cost
+                                                }
+                                            >
+                                                {att.name} · {att.damage}
+                                            </button>
+                                        ))}
+                                        {selectedHandCard?.type === 'Energy' && (
+                                            <button
+                                                className="pixel-btn primary attach-btn"
+                                                onClick={() => {
+                                                    actions.attachEnergy(selectedHandCard.id);
+                                                    setSelectedHandCard(null);
+                                                }}
+                                                disabled={me.hasAttached}
+                                            >
+                                                ATTACH ENERGY
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        {renderBench(me, true)}
+                    </div>
+                </section>
 
                 <aside className="action-log pixel-screen">
                     <h3>■ LOG</h3>
                     <ul>
+                        {actionLog.length === 0 && (
+                            <li className="ok">
+                                <span className="log-type">READY</span>
+                                <span className="log-player">Waiting for actions…</span>
+                            </li>
+                        )}
                         {actionLog.map((a) => (
                             <li key={a.id} className={a.success ? 'ok' : 'fail'}>
                                 <span className="log-type">{a.actionType}</span>
@@ -235,7 +283,7 @@ export const GameBoard = () => {
                 </aside>
             </div>
 
-            <div className="hand-container pixel-panel">
+            <footer className="hand-container pixel-panel">
                 <div className="hand-actions">
                     <button
                         className="pixel-btn primary draw-btn"
@@ -257,33 +305,41 @@ export const GameBoard = () => {
                             <span className="animate-insert-coin">SELECT A CARD</span>
                         )}
                     </div>
-                    <button
-                        className="pixel-btn end-turn-btn"
-                        disabled={!isMyTurn || needsPromote}
-                        onClick={actions.endTurn}
-                    >
-                        END TURN
-                    </button>
-                    <button
-                        className="pixel-btn"
-                        onClick={() => setPlayerId(playerId === 'player1' ? 'player2' : 'player1')}
-                    >
-                        SWAP P1/P2
-                    </button>
+                    <div className="hand-action-btns">
+                        <button
+                            className="pixel-btn end-turn-btn"
+                            disabled={!isMyTurn || needsPromote}
+                            onClick={actions.endTurn}
+                        >
+                            END TURN
+                        </button>
+                        <button
+                            className="pixel-btn"
+                            onClick={() => setPlayerId(playerId === 'player1' ? 'player2' : 'player1')}
+                        >
+                            SWAP
+                        </button>
+                    </div>
                 </div>
 
                 <div className="hand-cards">
                     {me?.hand?.map((card, i) => (
-                        <div key={card.id || i} className={`hand-card-wrapper ${selectedHandCard?.id === card.id ? 'selected-card' : ''}`}>
+                        <div
+                            key={card.id || i}
+                            className={`hand-card-wrapper ${
+                                selectedHandCard?.id === card.id ? 'selected-card' : ''
+                            }`}
+                        >
                             <Card
                                 card={card}
+                                size="md"
                                 isPlayable={isMyTurn && !needsPromote}
                                 onClick={() => handleHandCardClick(card)}
                             />
                         </div>
                     ))}
                 </div>
-            </div>
+            </footer>
         </div>
     );
 };

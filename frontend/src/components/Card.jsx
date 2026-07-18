@@ -16,14 +16,14 @@ const TypeIcon = ({ type, className }) => {
     }
 };
 
-export const Card = ({ card, className = '', onClick, isPlayable = false, isActive = false }) => {
-    if (!card) return <div className="card empty-slot">EMPTY</div>;
+export const Card = ({ card, className = '', onClick, isPlayable = false, isActive = false, size = 'md' }) => {
+    if (!card) return <div className={`card empty-slot size-${size}`}>EMPTY</div>;
 
     const elementType = card.elementType || (card.name?.includes('Electric') ? 'Electric' : card.type);
 
     return (
         <div
-            className={`card ${card.type?.toLowerCase() || ''} ${isPlayable ? 'playable' : ''} ${isActive ? 'active-card' : ''} ${className}`}
+            className={`card size-${size} ${card.type?.toLowerCase() || ''} ${isPlayable ? 'playable' : ''} ${isActive ? 'active-card' : ''} ${className}`}
             onClick={() => onClick && onClick(card)}
         >
             <div className="card-header">
