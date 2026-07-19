@@ -79,7 +79,8 @@ const SECTIONS = [
         <ol>
           <li>Lead with your first selected Pokémon; the other two form your back line.</li>
           <li>
-            <strong>Power cards</strong> draw automatically once per turn into an empty slot (max 4).
+            <strong>Power cards</strong> draw automatically once per turn into an empty slot (max 4)
+            and keep dealing until the game ends (the special-power deck refills when empty).
             If slots are full, choose a card to swap out—or keep your hand and discard the draw.
             Tap any held cards to use them on your Active this turn (Attack, Defense, or Heal)—you may play
             multiple—or leave them for later.

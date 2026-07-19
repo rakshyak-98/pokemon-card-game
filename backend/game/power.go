@@ -16,7 +16,8 @@ const (
 	EffectHeal         = "heal"
 )
 
-// PowerDeckSize is how many special power cards each competitor starts with.
+// PowerDeckSize is how many special power cards each competitor starts with
+// (and how many are added on each mid-game refill).
 const PowerDeckSize = 12
 
 // MaxPowerHandSlots — each player may hold at most this many power cards (empty slots to fill).
@@ -30,21 +31,67 @@ const (
 )
 
 // fallbackPowerCatalog is used when the DB / PokeAPI power seed is empty.
+// Names lean on ASC / MEW Trainer Item and healing themes (Potion, X Attack, berries, etc.).
 var fallbackPowerCatalog = []models.PowerCard{
 	{
 		PokeAPIID: 57, Name: "X Attack", Effect: EffectBoostAttack, EffectValue: PowerAttackBonus,
 		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-attack.png",
-		Category: "stat-boosts",
+		Category: "stat-boosts", Description: "Raises Attack for the next hit.",
 	},
 	{
 		PokeAPIID: 58, Name: "X Defense", Effect: EffectBoostDefense, EffectValue: PowerDefenseBonus,
 		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-defense.png",
-		Category: "stat-boosts",
+		Category: "stat-boosts", Description: "Raises Defense against the next hit.",
 	},
 	{
 		PokeAPIID: 17, Name: "Potion", Effect: EffectHeal, EffectValue: PowerHealAmount,
 		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/potion.png",
-		Category: "healing",
+		Category: "healing", Description: "Restores HP to the Active Pokémon.",
+	},
+	{
+		PokeAPIID: 18, Name: "Super Potion", Effect: EffectHeal, EffectValue: 35,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/super-potion.png",
+		Category: "healing", Description: "A stronger Potion that restores more HP.",
+	},
+	{
+		PokeAPIID: 19, Name: "Hyper Potion", Effect: EffectHeal, EffectValue: 50,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/hyper-potion.png",
+		Category: "healing", Description: "Greatly restores HP to the Active Pokémon.",
+	},
+	{
+		PokeAPIID: 55, Name: "Guard Spec", Effect: EffectBoostDefense, EffectValue: 10,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/guard-spec.png",
+		Category: "stat-boosts", Description: "Temporarily hardens defenses.",
+	},
+	{
+		PokeAPIID: 56, Name: "Dire Hit", Effect: EffectBoostAttack, EffectValue: 15,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dire-hit.png",
+		Category: "stat-boosts", Description: "Sharpens focus for a stronger hit.",
+	},
+	{
+		PokeAPIID: 126, Name: "Oran Berry", Effect: EffectHeal, EffectValue: 20,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png",
+		Category: "medicine", Description: "A restorative berry that heals a little HP.",
+	},
+	{
+		PokeAPIID: 158, Name: "Sitrus Berry", Effect: EffectHeal, EffectValue: 40,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png",
+		Category: "medicine", Description: "A restorative berry that heals a solid amount of HP.",
+	},
+	{
+		PokeAPIID: 266, Name: "Muscle Band", Effect: EffectBoostAttack, EffectValue: 25,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/muscle-band.png",
+		Category: "held-items", Description: "A Trainer tool that boosts physical striking power.",
+	},
+	{
+		PokeAPIID: 640, Name: "Assault Vest", Effect: EffectBoostDefense, EffectValue: 25,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/assault-vest.png",
+		Category: "held-items", Description: "A Trainer tool that hardens the Active Pokémon.",
+	},
+	{
+		PokeAPIID: 234, Name: "Leftovers", Effect: EffectHeal, EffectValue: 25,
+		ImageURL: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/leftovers.png",
+		Category: "held-items", Description: "Gradually restores HP to the Active Pokémon.",
 	},
 }
 
@@ -91,8 +138,9 @@ func (e *Engine) buildPowerDeck(playerID string) []models.Card {
 		eff := available[i%len(available)]
 		choices := byEffect[eff]
 		tpl := choices[r.Intn(len(choices))]
+		e.powerSeq++
 		deck = append(deck, models.Card{
-			ID:          fmt.Sprintf("%s-power-%d", playerID, i),
+			ID:          fmt.Sprintf("%s-power-%d", playerID, e.powerSeq),
 			Name:        tpl.Name,
 			Type:        models.TypePower,
 			Effect:      tpl.Effect,
@@ -105,6 +153,15 @@ func (e *Engine) buildPowerDeck(playerID string) []models.Card {
 		deck[i], deck[j] = deck[j], deck[i]
 	})
 	return deck
+}
+
+// ensurePowerDeck refills the player's special-power deck when empty so draws
+// continue every turn until the game ends.
+func (e *Engine) ensurePowerDeck(player *models.PlayerState) {
+	if player == nil || len(player.PowerDeck) > 0 {
+		return
+	}
+	player.PowerDeck = e.buildPowerDeck(player.ID)
 }
 
 // drawPowerCard moves the top card from PowerDeck into Hand, or into PendingDraw

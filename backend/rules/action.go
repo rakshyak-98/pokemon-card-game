@@ -9,19 +9,19 @@ import (
 
 // Action names mirrored from command package (avoid import cycle).
 const (
-	ActionStartGame        = "start_game"
-	ActionSelectParty      = "select_party"
-	ActionDrawCard         = "draw_card"
-	ActionSelectDraw       = "select_draw"
-	ActionPlayBench        = "play_bench"
-	ActionSetActive        = "set_active"
-	ActionAttachEnergy     = "attach_energy"
-	ActionAttack           = "attack"
-	ActionEndTurn          = "end_turn"
-	ActionPromote          = "promote"
-	ActionUseShield        = "use_shield"
-	ActionSwitch           = "switch"
-	ActionPlayPower        = "play_power"
+	ActionStartGame    = "start_game"
+	ActionSelectParty  = "select_party"
+	ActionDrawCard     = "draw_card"
+	ActionSelectDraw   = "select_draw"
+	ActionPlayBench    = "play_bench"
+	ActionSetActive    = "set_active"
+	ActionAttachEnergy = "attach_energy"
+	ActionAttack       = "attack"
+	ActionEndTurn      = "end_turn"
+	ActionPromote      = "promote"
+	ActionUseShield    = "use_shield"
+	ActionSwitch       = "switch"
+	ActionPlayPower    = "play_power"
 )
 
 // ValidateAction checks whether an action is legal for the current handbook-adapted game state.
@@ -170,9 +170,7 @@ func validateDrawCard(state *models.GameState, playerID string) error {
 	if p.HasDrawn {
 		return fmt.Errorf("already drawn this turn")
 	}
-	if len(p.PowerDeck) == 0 {
-		return fmt.Errorf("power deck is empty")
-	}
+	// Empty power decks are refilled automatically; draws continue until the game ends.
 	return nil
 }
 

@@ -220,3 +220,69 @@ func TestComputeDamageUsesBonuses(t *testing.T) {
 		t.Fatalf("damage should floor at 0, got %d", got)
 	}
 }
+
+func TestPowerDeckRefillsUntilGameEnds(t *testing.T) {
+	e := NewEngine(fallbackCatalog())
+	if err := e.StartGame("player1", "player2", false); err != nil {
+		t.Fatal(err)
+	}
+	p1 := e.getPlayer("player1")
+	p2 := e.getPlayer("player2")
+	ids1 := []string{p1.BattleTeam[0].ID, p1.BattleTeam[1].ID, p1.BattleTeam[2].ID}
+	ids2 := []string{p2.BattleTeam[0].ID, p2.BattleTeam[1].ID, p2.BattleTeam[2].ID}
+	if err := e.SelectParty("player1", ids1); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.SelectParty("player2", ids2); err != nil {
+		t.Fatal(err)
+	}
+
+	p1 = e.getPlayer("player1")
+	// Exhaust the starting deck (one card already auto-drawn into hand).
+	p1.PowerDeck = nil
+	p1.HasDrawn = false
+	beforeHand := len(p1.Hand)
+
+	if err := e.DrawCard("player1"); err != nil {
+		t.Fatalf("draw should refill empty power deck: %v", err)
+	}
+	p1 = e.getPlayer("player1")
+	if len(p1.Hand) != beforeHand+1 {
+		t.Fatalf("expected hand to grow after refill draw, hand=%d", len(p1.Hand))
+	}
+	if len(p1.PowerDeck) != PowerDeckSize-1 {
+		t.Fatalf("expected refilled deck with %d remaining, got %d", PowerDeckSize-1, len(p1.PowerDeck))
+	}
+
+	// Simulate many turns: auto-draw must keep working after further empties.
+	for turn := 0; turn < PowerDeckSize+3; turn++ {
+		p1 = e.getPlayer("player1")
+		p1.HasDrawn = false
+		p1.PendingDraw = nil
+		if len(p1.Hand) >= MaxPowerHandSlots {
+			p1.Hand = p1.Hand[:MaxPowerHandSlots-1]
+		}
+		e.tryAutoDrawPower("player1")
+		p1 = e.getPlayer("player1")
+		if !p1.HasDrawn {
+			t.Fatalf("turn %d: expected auto-draw after refill", turn)
+		}
+	}
+}
+
+func TestFallbackCatalogHasASCTrainerVariety(t *testing.T) {
+	names := map[string]bool{}
+	effects := map[string]int{}
+	for _, c := range fallbackPowerCatalog {
+		names[c.Name] = true
+		effects[c.Effect]++
+	}
+	for _, want := range []string{"Potion", "Hyper Potion", "X Attack", "Guard Spec", "Oran Berry", "Muscle Band"} {
+		if !names[want] {
+			t.Fatalf("fallback catalog missing ASC-themed card %q", want)
+		}
+	}
+	if effects[EffectBoostAttack] == 0 || effects[EffectBoostDefense] == 0 || effects[EffectHeal] == 0 {
+		t.Fatalf("fallback catalog missing an effect kind: %+v", effects)
+	}
+}

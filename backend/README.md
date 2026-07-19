@@ -20,7 +20,7 @@ Default path: `backend/data/pokemon.db` (override with `DATABASE_PATH`).
 - **games** — live game row + JSON state snapshot
 - **action_logs** — every user action (success and failure)
 - **pokemons** — catalog seeded from [PokeAPI](https://pokeapi.co) (official artwork, types, base stats, card HP/attacks)
-- **power_cards** — special power cards seeded from PokeAPI items (X Attack, potions, pinch berries, etc.)
+- **power_cards** — special power cards seeded from PokeAPI items inspired by ASC/MEW Trainer Items (X Attack, Potion family, berries, held tools, etc.). Decks refill mid-game so draws continue until the match ends.
 
 On first boot the server fetches Gen 1 (ids 1–151) into `pokemons` and builds decks from that catalog. It also seeds battle items into `power_cards` for the special-power deck. Override with:
 

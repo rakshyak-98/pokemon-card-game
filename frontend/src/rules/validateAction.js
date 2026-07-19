@@ -118,7 +118,7 @@ export function validateAction({ gameState, playerId, action, payload = {} }) {
       }
       if (!me?.activePokemon) return { ok: false, error: 'No active Pokémon' };
       if (me.hasDrawn) return { ok: false, error: 'Already drawn this turn' };
-      if (!(me.powerDeck?.length > 0)) return { ok: false, error: 'Power deck is empty' };
+      // Empty power decks are refilled automatically; draws continue until the game ends.
       return { ok: true };
     }
 

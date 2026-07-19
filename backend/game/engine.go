@@ -18,6 +18,8 @@ type Engine struct {
 	State        *models.GameState
 	catalog      []models.Pokemon
 	powerCatalog []models.PowerCard
+	// powerSeq ensures unique power-card IDs across mid-game deck refills.
+	powerSeq int
 }
 
 func NewEngine(catalog []models.Pokemon) *Engine {
@@ -338,6 +340,7 @@ func (e *Engine) DrawCard(playerID string) error {
 	if player.ActivePokemon == nil {
 		return errors.New("no active pokemon")
 	}
+	e.ensurePowerDeck(player)
 	name, pending, err := drawPowerCard(player)
 	if err != nil {
 		return err
@@ -365,7 +368,11 @@ func (e *Engine) tryAutoDrawPower(playerID string) {
 	if player == nil || player.HasDrawn || player.ActivePokemon == nil {
 		return
 	}
-	if len(player.PendingDraw) > 0 || len(player.PowerDeck) == 0 {
+	if len(player.PendingDraw) > 0 {
+		return
+	}
+	e.ensurePowerDeck(player)
+	if len(player.PowerDeck) == 0 {
 		return
 	}
 	name, pending, err := drawPowerCard(player)

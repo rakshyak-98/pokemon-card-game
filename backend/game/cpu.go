@@ -93,7 +93,8 @@ func (e *Engine) cpuActOnce() error {
 	}
 
 	// Draw is auto-triggered on turn start; only draw here if somehow skipped.
-	if cpu != nil && !cpu.HasDrawn && len(cpu.PowerDeck) > 0 {
+	// ensurePowerDeck (via DrawCard) refills an empty deck so CPU keeps drawing all game.
+	if cpu != nil && !cpu.HasDrawn {
 		if err := e.DrawCard(cpuID); err != nil {
 			return err
 		}
