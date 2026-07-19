@@ -47,7 +47,7 @@ export const PartySelect = ({ me, gameNumber, winsNeeded, onConfirm, confirming,
                     onClick={() => toggle(card.id)}
                   >
                     {on && <span className="pick-order">{order === 0 ? 'LEAD' : order + 1}</span>}
-                    <Card card={card} size="sm" />
+                    <Card card={card} size="md" />
                     <span className="cp-chip">CP {card.combatPower}</span>
                   </button>
                 );
