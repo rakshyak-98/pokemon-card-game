@@ -2,6 +2,24 @@
 
 A turn-based Pokémon GO Championship–style battle you can play in the browser. Rules are adapted from the Play! Pokémon Pokémon GO Tournament Handbook (Great League, Battle Teams, best-of-three).
 
+## Screenshots
+
+### Select battle party
+
+![Battle team preview](docs/screenshots/battle-team.png)
+
+![Party selection](docs/screenshots/party-select.png)
+
+Pick exactly 3 Pokémon from your Great League Battle Team (≤1500 CP). First pick leads as Active.
+
+![Party locked with lead](docs/screenshots/party-locked.png)
+
+### In battle
+
+![Battle board](docs/screenshots/battle.png)
+
+Charge energy, attack, switch from the back line, and play power cards (Attack / Defense / Heal). Practice mode supports vs CPU.
+
 ## Goal
 
 Recreate the core loop of a Pokémon GO tournament match as a local full-stack app:
